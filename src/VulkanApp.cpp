@@ -17,6 +17,7 @@
 #include <vulkan/vulkan_handles.hpp>
 #include <vulkan/vulkan_raii.hpp>
 #include <vulkan/vulkan_structs.hpp>
+#include <vulkan/vulkan_to_string.hpp>
 
 // imgui
 #include <backends/imgui_impl_vulkan.h>
@@ -79,7 +80,7 @@ std::vector<const char*> getRequiredExtensions() {
         glfwGetRequiredInstanceExtensions(&glfwExtensionCount);
 
     std::vector extensions(glfwExtensions, glfwExtensions + glfwExtensionCount);
-    if (enableValidationLayers) {
+    if (ENABLE_VALIDATION_LAYERS) {
         extensions.push_back(vk::EXTDebugUtilsExtensionName);
     }
 
@@ -97,7 +98,7 @@ vk::raii::Instance createInstance(const vk::raii::Context& context) {
 
     // Get the required layers
     std::vector<char const*> requiredLayers;
-    if (enableValidationLayers) {
+    if (ENABLE_VALIDATION_LAYERS) {
         requiredLayers.assign(validationLayers.begin(), validationLayers.end());
     }
 
@@ -155,7 +156,7 @@ vk::raii::Instance createInstance(const vk::raii::Context& context) {
 }
 
 vk::raii::DebugUtilsMessengerEXT setupDebugMessenger(const vk::raii::Instance& instance) {
-    if (!enableValidationLayers) {
+    if (!ENABLE_VALIDATION_LAYERS) {
         return nullptr;
     }
     vk::DebugUtilsMessageSeverityFlagsEXT severityFlags(
@@ -181,18 +182,16 @@ vk::raii::DebugUtilsMessengerEXT setupDebugMessenger(const vk::raii::Instance& i
             if (severity == vk::DebugUtilsMessageSeverityFlagBitsEXT::eError ||
                 severity == vk::DebugUtilsMessageSeverityFlagBitsEXT::eWarning) {
                 std::println(
-                    stderr,
-                    "validation layer: type {} msg: {}",
-                    to_string(type),
+                    "[{}] {}, {}",
+                    vk::to_string(severity),
+                    vk::to_string(type),
                     pCallbackData->pMessage
                 );
             }
             return vk::False;
         }
     };
-    return instance.createDebugUtilsMessengerEXT(
-        debugUtilsMessengerCreateInfoEXT
-    );
+    return instance.createDebugUtilsMessengerEXT(debugUtilsMessengerCreateInfoEXT);
 }
 
 vk::raii::PhysicalDevice pickPhysicalDevice(vk::raii::Instance& instance) {
@@ -543,14 +542,15 @@ vk::raii::Pipeline createGraphicsPipeline(
 }
 
 /*
- * update: pool, frame
+ * update: pool, frames
  */
 void createFrames(
     vk::raii::CommandPool& pool,
-    std::span<VulkanApp::Frame, MAX_FRAMES_IN_FLIGHT> frames,
+    std::vector<VulkanApp::Frame>& frames,
     const vk::raii::Device& device,
     uint32_t queueFamilyIndex
 ) {
+    assert(frames.empty());
     if (pool == nullptr) {
         vk::CommandPoolCreateInfo poolInfo{
             .flags = vk::CommandPoolCreateFlagBits::eResetCommandBuffer,
@@ -564,12 +564,16 @@ void createFrames(
         .commandBufferCount = MAX_FRAMES_IN_FLIGHT
     };
     vk::raii::CommandBuffers commandbufs{device, allocInfo};
-    for (int i = 0; i < frames.size(); i++) {
-        frames[i] = VulkanApp::Frame{
-            .cmdBuffer = std::move(commandbufs[i]),
-            .presentComplete = {device, vk::SemaphoreCreateInfo{}},
-            .fences = {device, vk::FenceCreateInfo{.flags = vk::FenceCreateFlagBits::eSignaled}}
-        };
+    vk::raii::CommandBuffer buf = nullptr;
+    for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+        frames.emplace_back(
+            std::move(commandbufs[i]),
+            vk::raii::Semaphore{device, vk::SemaphoreCreateInfo{}},
+            vk::raii::Fence{
+                device,
+                vk::FenceCreateInfo{.flags = vk::FenceCreateFlagBits::eSignaled}
+            }
+        );
     }
 }
 
@@ -632,7 +636,7 @@ void drawImgui(vk::raii::CommandBuffer& buffer, VulkanApp::AppState& state) {
     ImGui::NewFrame();
     {
         auto size = ImGui::GetMainViewport()->Size;
-        ImGui::SetNextWindowSize(ImVec2(size.x * 0.75, 85.0f), ImGuiCond_Appearing);
+        ImGui::SetNextWindowSize(ImVec2(size.x * 0.75, 100.0f), ImGuiCond_Appearing);
         ImGui::Begin("Hello, world!");
         ImGui::ColorEdit3(
             "clear color",
@@ -640,7 +644,7 @@ void drawImgui(vk::raii::CommandBuffer& buffer, VulkanApp::AppState& state) {
         );
         ImGui::SameLine();
         ImGui::Checkbox("Demo Window", &state.showDemoWindow);
-        ImGui::Text("fps: %.2fms", 1.0 / (state.frameTime / 1000.0));
+        ImGui::Text("Frame time: %.2fms", state.frameTime);
         ImGui::End();
     }
     if (state.showDemoWindow) {
@@ -808,7 +812,7 @@ void VulkanApp::recreateSwapChain() {
 void VulkanApp::drawFrame() {
     if (windowApp->isMinimized()) {
         this->framebufferResized = true;
-        std::println("Minimized, skip rendering");
+        // std::println("Minimized, skip rendering");
         return;
     }
     uint64_t timeNow = getTimestampMs();
@@ -827,7 +831,9 @@ void VulkanApp::drawFrame() {
     device.resetFences(*frame.fences);
 
     auto [result, imageIndex] = swapChain.swapChain.acquireNextImage(
-        UINT64_MAX, *frame.presentComplete, nullptr
+        UINT64_MAX,
+        *frame.presentComplete,
+        nullptr
     );
 
     if (result == vk::Result::eErrorOutOfDateKHR) {
@@ -957,7 +963,10 @@ VulkanApp::VulkanApp(std::unique_ptr<WindowApp>&& window)
 
 void VulkanApp::run() {
     windowApp->cleanupCallBack =
-        [this]() { this->device.waitIdle(); };
+        [this]() {
+            this->device.waitIdle();
+            ImGui_ImplVulkan_Shutdown();
+        };
     windowApp->resizeCallBack =
         [this](int, int) { this->framebufferResized = true; };
     windowApp->drawFrameCallBack =

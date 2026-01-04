@@ -67,8 +67,9 @@ void WindowApp::run() {
         drawFrameCallBack();
     }
     cleanupCallBack();
-    // glfwTerminate();
-    // call terminal will cause segfault on linux when cleanup swapchain?!
+    ImGui_ImplGlfw_Shutdown();
+    ImGui::DestroyContext();
+    glfwTerminate();
 }
 
 Size2D<int> WindowApp::getWindowSize() {

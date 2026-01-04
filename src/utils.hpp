@@ -9,6 +9,13 @@
 #include <fstream>
 #include <vector>
 
+constexpr bool IS_DEBUG =
+#ifdef _DEBUG
+    true;
+#else
+    false;
+#endif
+
 #define DISABLE_COPY(ClassName)                      \
 public:                                              \
     ClassName(const ClassName&) = delete;            \

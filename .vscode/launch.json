@@ -31,5 +31,16 @@
             "cwd": "${workspaceFolder}",
             "terminal": "integrated"
         },
+        {
+            "type": "lldb-dap",
+            "request": "launch",
+            "preLaunchTask": "Xmake: Build",
+            "name": "lldb-dap-linux",
+            "program": "${workspaceFolder}/build/linux/x86_64/debug/learn_vulkan",
+            "args": [],
+            "env": [],
+            "cwd": "${workspaceFolder}",
+            "console": "integratedTerminal"
+        }
     ]
 }
