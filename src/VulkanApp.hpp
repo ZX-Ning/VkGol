@@ -11,11 +11,18 @@
 #include <vulkan/vulkan_raii.hpp>
 #include <vulkan/vulkan_structs.hpp>
 
-#include "WindowApp.hpp"
-#include "utils.hpp"
+// VMA
+#include <vk_mem_alloc.h>
 
 // glfw
 #include <GLFW/glfw3.h>
+#include <vulkan/vulkan_core.h>
+
+// project
+#include "WindowApp.hpp"
+#include "utils.hpp"
+#include "VulkanUtils.hpp"
+#include "VmaBuffer.hpp"
 
 constexpr int MAX_FRAMES_IN_FLIGHT = 2;
 constexpr bool ENABLE_VALIDATION_LAYERS = IS_DEBUG;
@@ -27,40 +34,42 @@ inline const std::vector<const char*> requiredDeviceExtension = {
     vk::KHRSpirv14ExtensionName,
     vk::KHRSynchronization2ExtensionName,
     vk::KHRCreateRenderpass2ExtensionName,
-    vk::KHRDynamicRenderingExtensionName
+    vk::KHRDynamicRenderingExtensionName,
+    vk::EXTMemoryBudgetExtensionName
 };
 
 // forward declaration
 class WindowApp;
 ////////////////////////
 
+
 class VulkanApp {
 public:
     struct SurfaceImages {
         vk::Image image;
-        vk::raii::ImageView imageView = nullptr;
+        vk::raii::ImageView imageView{nullptr};
         // vk::raii::ImageView imageViewNorm;
-        vk::raii::Semaphore renderComplete = nullptr;
+        vk::raii::Semaphore renderComplete{nullptr};
     };
     struct SwapChain {
-        vk::raii::SwapchainKHR swapChain = nullptr;
+        vk::raii::SwapchainKHR swapChain{nullptr};
         vk::SurfaceFormatKHR surfaceFormat;
         vk::Extent2D extent;
         std::vector<SurfaceImages> images;
         void reset() {
-            swapChain = nullptr;
+            swapChain.release();
             extent = {0, 0},
             images.clear();
         }
     };
-    struct SimpleBuffer {
-        vk::raii::Buffer buffer = nullptr;
-        vk::raii::DeviceMemory memory = nullptr;
-    };
+    // struct SimpleBuffer {
+    //     vk::raii::Buffer buffer{nullptr};
+    //     vk::raii::DeviceMemory memory{nullptr};
+    // };
     struct Frame {
-        vk::raii::CommandBuffer cmdBuffer = nullptr;
-        vk::raii::Semaphore presentComplete = nullptr;
-        vk::raii::Fence fences = nullptr;
+        vk::raii::CommandBuffer cmdBuffer{nullptr};
+        vk::raii::Semaphore presentComplete{nullptr};
+        vk::raii::Fence fences{nullptr};
     };
     struct AppState {
         RGBAColor clearColor{0.45f, 0.53f, 0.65f, 1.f};
@@ -72,16 +81,17 @@ public:
 private:
     std::unique_ptr<WindowApp> windowApp;
     vk::raii::Context context;
-    vk::raii::Instance instance = nullptr;
-    vk::raii::DebugUtilsMessengerEXT debugMessenger = nullptr;
-    vk::raii::SurfaceKHR surface = nullptr;
-    vk::raii::PhysicalDevice physicalDevice = nullptr;
-    vk::raii::Device device = nullptr;
-    vk::raii::Queue queue = nullptr;
+    vk::raii::Instance instance{nullptr};
+    vk::raii::DebugUtilsMessengerEXT debugMessenger{nullptr};
+    vk::raii::SurfaceKHR surface{nullptr};
+    vk::raii::PhysicalDevice physicalDevice{nullptr};
+    vk::raii::Device device{nullptr};
+    vk::raii::Queue queue{nullptr};
     SwapChain swapChain;
-    vk::raii::Pipeline graphicsPipeline = nullptr;
-    SimpleBuffer vertexBuffer;
-    vk::raii::CommandPool commandPool = nullptr;
+    VmaAllocatorWrapper allocator;
+    vk::raii::Pipeline graphicsPipeline{nullptr};
+    std::unique_ptr<VmaBuffer> vertexBuffer;
+    vk::raii::CommandPool commandPool{nullptr};
     std::vector<Frame> frames;
     uint32_t minImageCount;
     uint32_t queueFamilyIndex = ~0;

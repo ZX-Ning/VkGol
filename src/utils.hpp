@@ -1,12 +1,12 @@
 #ifndef UTILS_HPP
 #define UTILS_HPP
 
-#include <GLFW/glfw3.h>
-
 #include <array>
 #include <cmath>
+#include <cstdint>
 #include <filesystem>
 #include <fstream>
+#include <type_traits>
 #include <vector>
 
 constexpr bool IS_DEBUG =
@@ -76,16 +76,6 @@ struct RGBAColor : public std::array<float, 4> {
     }
 };
 
-class GLFWwindow;
-struct GLFWwindowDeleter {
-    void operator()(GLFWwindow* window) {
-        if (window != nullptr) {
-            glfwDestroyWindow(window);
-        }
-    }
-};
-typedef std::unique_ptr<GLFWwindow, GLFWwindowDeleter> GLFWwindowWrapper;
-
 inline uint64_t getTimestampMs() {
     using namespace std::chrono;
     auto now = system_clock::now();
@@ -96,6 +86,13 @@ inline uint64_t getTimestampMs() {
 template <class T>
 inline size_t getVectorSize(const std::vector<T>& vec) {
     return vec.size() * sizeof(T);
+}
+
+template <class T>
+inline std::span<const uint8_t> asRawBytes(const std::vector<T>& vec) {
+    const uint8_t* data = reinterpret_cast<const uint8_t*>(vec.data());
+    size_t size = getVectorSize(vec);
+    return {data, size};
 }
 
 #endif  // UTILS_HPP

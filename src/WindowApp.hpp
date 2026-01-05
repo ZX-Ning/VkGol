@@ -1,7 +1,6 @@
 #ifndef WINDOWAPP_HPP
 #define WINDOWAPP_HPP
 
-// c++ std
 #include <GLFW/glfw3.h>
 
 #include <functional>
@@ -9,16 +8,27 @@
 
 #include "utils.hpp"
 
-// forward declaration to avoid including heavy headers
+// forward declarations
 class GLFWwindow;
 namespace vk::raii {
 class SurfaceKHR;
 class Instance;
 }  // namespace vk::raii
+///////////////////////////
+
+// RAII wrapper for GLFWwindow
+typedef std::unique_ptr<
+    GLFWwindow,
+    decltype([](GLFWwindow* window) {
+        if (window) {
+            glfwDestroyWindow(window);
+        }
+    })>
+    GLFWwindowWrapper;
 
 class WindowApp {
 private:
-    // unique_ptr make WindowApp moveable but not copyable
+    // unique_ptr makes WindowApp moveable but not copyable
     GLFWwindowWrapper window;
     static void resizeCallBackHelper(GLFWwindow* window, int width, int height);
 
@@ -29,6 +39,7 @@ public:
     WindowApp& operator=(const WindowApp&) = delete;
     WindowApp(WindowApp&&) = delete;
     WindowApp& operator=(WindowApp&&) = delete;
+    ~WindowApp() = default;
 
     std::function<void(int width, int height)> resizeCallBack;
     std::function<void()> drawFrameCallBack;

@@ -22,14 +22,21 @@
 // imgui
 #include <backends/imgui_impl_vulkan.h>
 #include <imgui.h>
+#include <vulkan/vulkan_core.h>
 
 // project
+#include "VmaBuffer.hpp"
 #include "WindowApp.hpp"
 #include "backends/imgui_impl_glfw.h"
 #include "utils.hpp"
 #include "vertex.hpp"
 
 namespace {
+// Static pointer to dispatchers to make Imgui and VMA work,
+// Ugly but can not found other solutions.
+// Require only one VulkanApp at a time.
+static vk::raii::detail::InstanceDispatcher* instanceDispatcher;
+static vk::raii::detail::DeviceDispatcher* deviceDispatcher;
 
 vk::SurfaceFormatKHR chooseSwapSurfaceFormat(
     const std::vector<vk::SurfaceFormatKHR>& availableFormats
@@ -93,7 +100,7 @@ vk::raii::Instance createInstance(const vk::raii::Context& context) {
         .applicationVersion = VK_MAKE_VERSION(1, 0, 0),
         .pEngineName = "No Engine",
         .engineVersion = VK_MAKE_VERSION(1, 0, 0),
-        .apiVersion = vk::ApiVersion14
+        .apiVersion = vk::ApiVersion13
     };
 
     // Get the required layers
@@ -593,9 +600,8 @@ uint32_t findMemoryType(
     throw std::runtime_error("failed to find suitable memory type!");
 }
 
-VulkanApp::SimpleBuffer createVertexBuffer(
-    const vk::raii::PhysicalDevice& physicalDevice,
-    const vk::raii::Device& device
+std::unique_ptr<VmaBuffer> createVertexBuffer(
+    const VmaAllocator& allocator
 ) {
     const auto& vertices = TRAINGLE;
     // create vertex buffer
@@ -604,30 +610,18 @@ VulkanApp::SimpleBuffer createVertexBuffer(
         .usage = vk::BufferUsageFlagBits::eVertexBuffer,
         .sharingMode = vk::SharingMode::eExclusive
     };
-    vk::raii::Buffer vertexBuffer(device, bufferInfo);
-
-    // create buffer memory
-    vk::MemoryRequirements memRequirements = vertexBuffer.getMemoryRequirements();
-    vk::MemoryAllocateInfo memoryAllocateInfo{
-        .allocationSize = memRequirements.size,
-        .memoryTypeIndex = findMemoryType(
-            physicalDevice,
-            memRequirements.memoryTypeBits,
-            vk::MemoryPropertyFlagBits::eHostVisible |
-                vk::MemoryPropertyFlagBits::eHostCoherent
-        )
+    VmaAllocationCreateInfo allocInfo = {
+        .flags =
+            VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT |
+            VMA_ALLOCATION_CREATE_MAPPED_BIT,
+        .usage = VMA_MEMORY_USAGE_AUTO,
     };
-    vk::raii::DeviceMemory vertexBufferMemory(device, memoryAllocateInfo);
-    vertexBuffer.bindMemory(*vertexBufferMemory, 0);
-    return {std::move(vertexBuffer), std::move(vertexBufferMemory)};
+    return std::make_unique<VmaBuffer>(bufferInfo, allocInfo, allocator);
 }
 
-void writeVertexBuffer(const VulkanApp::SimpleBuffer& vertBuffer) {
+void writeVertexBuffer(VmaBuffer& vertBuffer) {
     const auto& vertices = TRAINGLE;
-    uint32_t size = sizeof(vertices[0]) * vertices.size();
-    void* data = vertBuffer.memory.mapMemory(0, size);
-    memcpy(data, vertices.data(), size);
-    vertBuffer.memory.unmapMemory();
+    vertBuffer.write(asRawBytes(vertices));
 }
 
 void drawImgui(vk::raii::CommandBuffer& buffer, VulkanApp::AppState& state) {
@@ -686,23 +680,61 @@ vk::Format formatToUnorm(vk::Format format) {
         }
     }
 }
+
+VmaAllocatorWrapper createVmaAllocator(
+    const vk::raii::Instance& instance,
+    const vk::raii::PhysicalDevice& physicalDevice,
+    const vk::raii::Device& device
+) {
+    VmaVulkanFunctions functions = {
+        .vkGetInstanceProcAddr =
+            [](VkInstance instance, const char* pName) {
+                return instanceDispatcher
+                    ->vkGetInstanceProcAddr(instance, pName);
+            },
+        .vkGetDeviceProcAddr =
+            [](VkDevice device, const char* pName) {
+                return deviceDispatcher
+                    ->vkGetDeviceProcAddr(device, pName);
+            }
+    };
+    VmaAllocatorCreateFlags flags =
+        VMA_ALLOCATOR_CREATE_EXT_MEMORY_BUDGET_BIT;
+    VmaAllocatorCreateInfo info{
+        .flags = flags,
+        .physicalDevice = *physicalDevice,
+        .device = *device,
+        .pVulkanFunctions = &functions,
+        .instance = *instance,
+        .vulkanApiVersion = VK_API_VERSION_1_3,
+    };
+    VmaAllocator allocator;
+    if (vmaCreateAllocator(&info, &allocator) != VK_SUCCESS) {
+        throw std::runtime_error("Error creating VMA allocator");
+    }
+    VmaAllocatorWrapper wrapper(new VmaAllocator);
+    *wrapper = allocator;
+    return wrapper;
+}
+
 // TODO: ADD MORE FUNCTION HERE
 }  // namespace
 
 void VulkanApp::init() {
     instance = createInstance(context);
     debugMessenger = setupDebugMessenger(instance);
-
     surface = windowApp->createSurface(instance);
-
     physicalDevice = pickPhysicalDevice(instance);
-
     {  // creat logic device and queue
         auto result = createLogicalDeviceAndQueueIndex(physicalDevice, surface);
         device = std::move(std::get<0>(result));
         queueFamilyIndex = std::get<1>(result);
         queue = vk::raii::Queue(device, queueFamilyIndex, 0);
     }
+    instanceDispatcher = const_cast<decltype(instanceDispatcher)>(instance.getDispatcher());
+    deviceDispatcher = const_cast<decltype(deviceDispatcher)>(device.getDispatcher());
+
+    allocator = createVmaAllocator(instance, physicalDevice, device);
 
     Size2D<uint32_t> size = windowApp->getFrameSize();
     minImageCount = chooseSwapMinImageCount(physicalDevice.getSurfaceCapabilitiesKHR(surface));
@@ -711,8 +743,8 @@ void VulkanApp::init() {
         physicalDevice, device, surface, minImageCount, {size.width, size.height}
     );
 
-    vertexBuffer = createVertexBuffer(physicalDevice, device);
-    writeVertexBuffer(vertexBuffer);
+    vertexBuffer = createVertexBuffer(*allocator);
+    writeVertexBuffer(*vertexBuffer);
 
     graphicsPipeline = createGraphicsPipeline(device, swapChain.surfaceFormat);
     createFrames(commandPool, frames, device, queueFamilyIndex);
@@ -786,14 +818,15 @@ void VulkanApp::initImgui() {
         .CustomShaderFragCreateInfo = fragInfo
     };
 
-    const static auto s_instance = &instance;
     ImGui_ImplVulkan_LoadFunctions(
         VK_API_VERSION_1_3,
-        [](const char* name, void*) {
-            auto dispatcher = s_instance->getDispatcher();
-            return dispatcher->vkGetInstanceProcAddr(**s_instance, name);
+        [](const char* name, void* data) {
+            const vk::Instance* instance =
+                reinterpret_cast<const vk::Instance*>(data);
+            auto dispatcher = instanceDispatcher;
+            return dispatcher->vkGetInstanceProcAddr(*instance, name);
         },
-        nullptr
+        const_cast<void*>(reinterpret_cast<const void*>(&*instance))
     );
 
     ImGui_ImplVulkan_Init(&initInfo);
@@ -801,6 +834,9 @@ void VulkanApp::initImgui() {
 
 void VulkanApp::recreateSwapChain() {
     Size2D<uint32_t> size = windowApp->getFrameSize();
+    if (windowApp->isMinimized() || size.height <= 0 || size.width <= 0) {
+        return;
+    }
     device.waitIdle();
     swapChain.reset();
     minImageCount = chooseSwapMinImageCount(physicalDevice.getSurfaceCapabilitiesKHR(surface));
@@ -893,7 +929,9 @@ void VulkanApp::drawFrame() {
         frame.cmdBuffer.setScissor(
             0, vk::Rect2D(vk::Offset2D(0, 0), swapChain.extent)
         );
-        frame.cmdBuffer.bindVertexBuffers(0, *vertexBuffer.buffer, {0});
+        frame.cmdBuffer.bindVertexBuffers(
+            0, vertexBuffer->getVkBuffer(), {0}
+        );
         frame.cmdBuffer.draw(3, 1, 0, 0);
         drawImgui(frame.cmdBuffer, state);
         frame.cmdBuffer.endRendering();

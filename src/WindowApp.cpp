@@ -4,9 +4,9 @@
 #include <cassert>
 #include <functional>
 #include <print>
+#include <stdexcept>
 
 // vulkan
-#include <stdexcept>
 #include <vulkan/vulkan_raii.hpp>
 
 // glfw
