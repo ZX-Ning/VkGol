@@ -58,7 +58,7 @@ public:
         void reset() {
             // Don't use release, which does not delete the resource.
             swapChain = nullptr;
-            extent = {0, 0},
+            extent = vk::Extent2D{0, 0},
             images.clear();
         }
     };

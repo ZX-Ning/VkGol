@@ -640,12 +640,14 @@ void writeVertexBuffer(
 }
 
 void drawImgui(vk::raii::CommandBuffer& buffer, VulkanApp::AppState& state) {
-    ImGui_ImplVulkan_NewFrame();
     ImGui_ImplGlfw_NewFrame();
+    ImGui_ImplVulkan_NewFrame();
     ImGui::NewFrame();
     {
+        auto imguiScale = ImGui::GetIO().DisplayFramebufferScale;
         auto size = ImGui::GetMainViewport()->Size;
-        ImGui::SetNextWindowSize(ImVec2(size.x * 0.75, 100.0f), ImGuiCond_Appearing);
+        // std::println("Imgui scale: {}x{}", imguiScale.x, imguiScale.y);
+        ImGui::SetNextWindowSize(ImVec2(size.x * 0.75, size.y * 0.15), ImGuiCond_Appearing);
         ImGui::Begin("Hello, world!");
         ImGui::ColorEdit3(
             "clear color",
@@ -662,38 +664,6 @@ void drawImgui(vk::raii::CommandBuffer& buffer, VulkanApp::AppState& state) {
     ImGui::Render();
     ImDrawData* draw_data = ImGui::GetDrawData();
     ImGui_ImplVulkan_RenderDrawData(draw_data, *buffer);
-}
-
-vk::Format formatToSrgb(vk::Format format) {
-    switch (format) {
-        case vk::Format::eB8G8R8A8Srgb:
-        case vk::Format::eB8G8R8A8Unorm: {
-            return vk::Format::eB8G8R8A8Srgb;
-        }
-        case vk::Format::eR8G8B8A8Srgb:
-        case vk::Format::eR8G8B8A8Unorm: {
-            return vk::Format::eR8G8B8A8Srgb;
-        }
-        default: {
-            throw std::runtime_error("Format not supported yet.");
-        }
-    }
-}
-
-vk::Format formatToUnorm(vk::Format format) {
-    switch (format) {
-        case vk::Format::eB8G8R8A8Srgb:
-        case vk::Format::eB8G8R8A8Unorm: {
-            return vk::Format::eB8G8R8A8Unorm;
-        }
-        case vk::Format::eR8G8B8A8Srgb:
-        case vk::Format::eR8G8B8A8Unorm: {
-            return vk::Format::eR8G8B8A8Unorm;
-        }
-        default: {
-            throw std::runtime_error("Format not supported yet.");
-        }
-    }
 }
 
 VmaAllocatorWrapper createVmaAllocator(
@@ -791,22 +761,23 @@ void VulkanApp::initImgui() {
     fontcfg.RasterizerDensity = 0.86f;
     imguiIo->Fonts->AddFontFromFileTTF(
         "assets/fonts/IBMPlex/IBMPlexSans-Regular.ttf",
-        16.f,
+        17.f,
         &fontcfg
     );
-
-    // set style
     ImGuiStyle* style = &ImGui::GetStyle();
-    style->WindowRounding = 6.f;
-    style->FrameRounding = 5.f;
-    style->WindowPadding = {10, 5};
-    style->FramePadding = {5, 2};
-    float scale = windowApp->getScale();
-
-    if (scale > 1) {
-        style->FontScaleDpi = scale;
-    }
+    auto size = windowApp->getFrameSize();
+    // set style
     ImGui::StyleColorsDark();
+    style->WindowRounding = 5.f;
+    style->FrameRounding = 5.f;
+    style->WindowPadding = {8, 5};
+    style->FramePadding = {3, 2};
+
+    float scale = windowApp->getScale();
+    if (windowApp->scalingType == WindowApp::WINDOWS_OR_X11) {
+        style->FontScaleDpi = scale;
+        style->ScaleAllSizes(scale);
+    }
 
     vk::PipelineRenderingCreateInfoKHR pipelineInfo{
         .colorAttachmentCount = 1,
@@ -875,6 +846,8 @@ void VulkanApp::drawFrame() {
         // std::println("Minimized, skip rendering");
         return;
     }
+    auto size = windowApp->getFrameSize();
+    ImGui::GetIO().DisplaySize = ImVec2{size.width * 1.f, size.height * 1.f};
     uint64_t timeNow = getTimestampMs();
     state.frameTime = timeNow - state.lastRenderTimestamp;
     state.lastRenderTimestamp = timeNow;

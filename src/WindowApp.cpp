@@ -30,7 +30,9 @@ WindowApp::WindowApp(int width, int height, std::string_view tittle) {
 
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
     glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
-    glfwWindowHint(GLFW_SCALE_TO_MONITOR, GLFW_TRUE);
+    glfwWindowHint(GLFW_SCALE_TO_MONITOR, GLFW_FALSE);
+    glfwWindowHint(GLFW_SCALE_FRAMEBUFFER, GLFW_TRUE);
+
 
     window.reset(glfwCreateWindow(
         width,
@@ -47,12 +49,26 @@ WindowApp::WindowApp(int width, int height, std::string_view tittle) {
     );
 
     auto fbSize = getFrameSize();
+    if (fbSize.height == height) {
+        scalingType = WINDOWS_OR_X11;
+        float scale = getScale();
+        width *= scale;
+        height *= scale;
+        fbSize.height *= scale;
+        fbSize.width *= scale;
+        glfwSetWindowSize(window.get(), width, height);
+    }
+    else {
+        scalingType = MAC_OR_WAYLAND;
+    }
+
     std::println(
-        "Created a GLFW window; Size:{} x {}; Framebuffer Size: {}x{}",
+        "Created a GLFW window; Size:{} x {}; Framebuffer Size: {}x{}, Scale method: {}",
         width,
         height,
         fbSize.width,
-        fbSize.height
+        fbSize.height,
+        scalingType == WINDOWS_OR_X11 ? "win/x11" : "mac/wayland"
     );
 
     ImGui::CreateContext();
@@ -72,7 +88,7 @@ void WindowApp::run() {
     // glfwTerminate();
 }
 
-Size2D<int> WindowApp::getWindowSize() {
+Size2D<int> WindowApp::getWindowSize() const {
     int width, height;
     glfwGetWindowSize(window.get(), &width, &height);
     return {width, height};

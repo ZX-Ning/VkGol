@@ -1,6 +1,11 @@
 add_rules("mode.debug", "mode.release")
 
-add_requires("glfw")
+if (is_plat("linux")) then
+    add_requires("glfw", {configs = {wayland = true}})
+else
+    add_requires("glfw", {system = false})
+end
+
 add_requires("glm", "vulkan-hpp", "vulkan-memory-allocator", "stb", {system = false})
 
 includes("third_party/")

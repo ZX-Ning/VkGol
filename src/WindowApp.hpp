@@ -17,14 +17,14 @@ class Instance;
 ///////////////////////////
 
 // RAII wrapper for GLFWwindow
-typedef std::unique_ptr<
-    GLFWwindow,
-    decltype([](GLFWwindow* window) {
+struct WindowDeleter {
+    void operator()(GLFWwindow* window) const noexcept {
         if (window) {
             glfwDestroyWindow(window);
         }
-    })>
-    GLFWwindowWrapper;
+    }
+};
+using GLFWwindowWrapper = std::unique_ptr<GLFWwindow, WindowDeleter>;
 
 class WindowApp {
 private:
@@ -33,6 +33,10 @@ private:
     static void resizeCallBackHelper(GLFWwindow* window, int width, int height);
 
 public:
+    enum ScalingType {
+        MAC_OR_WAYLAND,
+        WINDOWS_OR_X11,
+    } scalingType;
     explicit WindowApp(int width, int height, std::string_view tittle);
 
     WindowApp(const WindowApp&) = delete;
@@ -45,7 +49,7 @@ public:
     std::function<void()> drawFrameCallBack;
     std::function<void()> cleanupCallBack;
     void run();
-    Size2D<int> getWindowSize();
+    Size2D<int> getWindowSize() const;
     Size2D<int> getFrameSize() const;
     bool isMinimized() const;
     vk::raii::SurfaceKHR createSurface(const vk::raii::Instance& instance);
