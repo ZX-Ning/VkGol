@@ -1,7 +1,7 @@
 add_rules("mode.debug", "mode.release")
 
 add_requires("glfw")
-add_requires("glm", "vulkan-hpp", "vulkan-memory-allocator", {system = false})
+add_requires("glm", "vulkan-hpp", "vulkan-memory-allocator", "stb", {system = false})
 
 includes("third_party/")
 
@@ -9,7 +9,7 @@ target("learn_vulkan", function()
     set_kind("binary")
     set_languages("c17", "c++23")
     add_files("src/**.cpp")
-    add_packages("glfw", "glm", "vulkan-hpp", "vulkan-memory-allocator")
+    add_packages("glfw", "glm", "vulkan-hpp", "vulkan-memory-allocator", "stb")
     add_deps("imgui_vulkan_glfw")
     add_defines("GLFW_INCLUDE_VULKAN")
     add_defines("VK_NO_PROTOTYPES")

@@ -69,7 +69,7 @@ void WindowApp::run() {
     cleanupCallBack();
     ImGui_ImplGlfw_Shutdown();
     ImGui::DestroyContext();
-    glfwTerminate();
+    // glfwTerminate();
 }
 
 Size2D<int> WindowApp::getWindowSize() {

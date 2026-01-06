@@ -19,10 +19,10 @@
 #include <vulkan/vulkan_core.h>
 
 // project
+#include "VmaBuffer.hpp"
+#include "VulkanUtils.hpp"
 #include "WindowApp.hpp"
 #include "utils.hpp"
-#include "VulkanUtils.hpp"
-#include "VmaBuffer.hpp"
 
 constexpr int MAX_FRAMES_IN_FLIGHT = 2;
 constexpr bool ENABLE_VALIDATION_LAYERS = IS_DEBUG;
@@ -42,7 +42,6 @@ inline const std::vector<const char*> requiredDeviceExtension = {
 class WindowApp;
 ////////////////////////
 
-
 class VulkanApp {
 public:
     struct SurfaceImages {
@@ -57,7 +56,8 @@ public:
         vk::Extent2D extent;
         std::vector<SurfaceImages> images;
         void reset() {
-            swapChain.release();
+            // Don't use release, which does not delete the resource.
+            swapChain = nullptr;
             extent = {0, 0},
             images.clear();
         }
@@ -83,16 +83,17 @@ private:
     vk::raii::Context context;
     vk::raii::Instance instance{nullptr};
     vk::raii::DebugUtilsMessengerEXT debugMessenger{nullptr};
-    vk::raii::SurfaceKHR surface{nullptr};
     vk::raii::PhysicalDevice physicalDevice{nullptr};
     vk::raii::Device device{nullptr};
+    vk::raii::SurfaceKHR surface{nullptr};
     vk::raii::Queue queue{nullptr};
+    vk::raii::CommandPool commandPool{nullptr};
+    vk::raii::CommandBuffer loadingCmdBuffer{nullptr};
+    std::vector<Frame> frames;
     SwapChain swapChain;
     VmaAllocatorWrapper allocator;
     vk::raii::Pipeline graphicsPipeline{nullptr};
-    std::unique_ptr<VmaBuffer> vertexBuffer;
-    vk::raii::CommandPool commandPool{nullptr};
-    std::vector<Frame> frames;
+    std::shared_ptr<StaticBuffer> vertexBuffer;
     uint32_t minImageCount;
     uint32_t queueFamilyIndex = ~0;
     uint32_t frameIndex = 0;

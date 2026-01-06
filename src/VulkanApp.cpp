@@ -12,6 +12,8 @@
 #include <vector>
 
 // vulkan
+#include <vulkan/vulkan_core.h>
+
 #include <vulkan/vulkan.hpp>
 #include <vulkan/vulkan_enums.hpp>
 #include <vulkan/vulkan_handles.hpp>
@@ -22,7 +24,6 @@
 // imgui
 #include <backends/imgui_impl_vulkan.h>
 #include <imgui.h>
-#include <vulkan/vulkan_core.h>
 
 // project
 #include "VmaBuffer.hpp"
@@ -381,7 +382,7 @@ VulkanApp::SwapChain createSwapChain(
     for (auto& image : swapChainImages) {
         imageViewCreateInfo.image = image;
         views.emplace_back(
-            image,
+            std::move(image),
             vk::raii::ImageView{device, imageViewCreateInfo},
             vk::raii::Semaphore{device, vk::SemaphoreCreateInfo{}}
         );
@@ -549,11 +550,12 @@ vk::raii::Pipeline createGraphicsPipeline(
 }
 
 /*
- * update: pool, frames
+ * updates: pool, frames, loadingBuf
  */
-void createFrames(
+void createCmdBuffers(
     vk::raii::CommandPool& pool,
     std::vector<VulkanApp::Frame>& frames,
+    vk::raii::CommandBuffer& loadingBuf,
     const vk::raii::Device& device,
     uint32_t queueFamilyIndex
 ) {
@@ -571,7 +573,7 @@ void createFrames(
         .commandBufferCount = MAX_FRAMES_IN_FLIGHT
     };
     vk::raii::CommandBuffers commandbufs{device, allocInfo};
-    vk::raii::CommandBuffer buf = nullptr;
+
     for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
         frames.emplace_back(
             std::move(commandbufs[i]),
@@ -582,6 +584,13 @@ void createFrames(
             }
         );
     }
+    // Create loading buffer
+    vk::CommandBufferAllocateInfo allocInfo2{
+        .commandPool = pool,
+        .level = vk::CommandBufferLevel::ePrimary,
+        .commandBufferCount = 1
+    };
+    loadingBuf = std::move(device.allocateCommandBuffers(allocInfo)[0]);
 }
 
 uint32_t findMemoryType(
@@ -600,28 +609,34 @@ uint32_t findMemoryType(
     throw std::runtime_error("failed to find suitable memory type!");
 }
 
-std::unique_ptr<VmaBuffer> createVertexBuffer(
+std::shared_ptr<StaticBuffer> createVertexBuffer(
     const VmaAllocator& allocator
 ) {
     const auto& vertices = TRAINGLE;
     // create vertex buffer
-    vk::BufferCreateInfo bufferInfo{
-        .size = sizeof(vertices[0]) * vertices.size(),
-        .usage = vk::BufferUsageFlagBits::eVertexBuffer,
-        .sharingMode = vk::SharingMode::eExclusive
-    };
-    VmaAllocationCreateInfo allocInfo = {
-        .flags =
-            VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT |
-            VMA_ALLOCATION_CREATE_MAPPED_BIT,
-        .usage = VMA_MEMORY_USAGE_AUTO,
-    };
-    return std::make_unique<VmaBuffer>(bufferInfo, allocInfo, allocator);
+    return BufferFactory::createVertexBuffer(allocator, getVectorSize(TRAINGLE));
 }
 
-void writeVertexBuffer(VmaBuffer& vertBuffer) {
+void writeVertexBuffer(
+    StaticBuffer& vertBuffer,
+    vk::raii::Queue& queue,
+    vk::raii::CommandBuffer& cmd
+) {
     const auto& vertices = TRAINGLE;
-    vertBuffer.write(asRawBytes(vertices));
+    cmd.begin(
+        vk::CommandBufferBeginInfo{
+            .flags = vk::CommandBufferUsageFlagBits::eOneTimeSubmit
+        }
+    );
+    vertBuffer.load(asRawBytes(TRAINGLE), cmd);
+    cmd.end();
+
+    const vk::SubmitInfo submitInfo{
+        .commandBufferCount = 1,
+        .pCommandBuffers = &*cmd,
+    };
+    queue.submit(submitInfo);
+    queue.waitIdle();
 }
 
 void drawImgui(vk::raii::CommandBuffer& buffer, VulkanApp::AppState& state) {
@@ -737,19 +752,28 @@ void VulkanApp::init() {
     allocator = createVmaAllocator(instance, physicalDevice, device);
 
     Size2D<uint32_t> size = windowApp->getFrameSize();
-    minImageCount = chooseSwapMinImageCount(physicalDevice.getSurfaceCapabilitiesKHR(surface));
+    minImageCount = chooseSwapMinImageCount(
+        physicalDevice.getSurfaceCapabilitiesKHR(surface)
+    );
 
     swapChain = createSwapChain(
         physicalDevice, device, surface, minImageCount, {size.width, size.height}
     );
 
-    vertexBuffer = createVertexBuffer(*allocator);
-    writeVertexBuffer(*vertexBuffer);
-
     graphicsPipeline = createGraphicsPipeline(device, swapChain.surfaceFormat);
-    createFrames(commandPool, frames, device, queueFamilyIndex);
+    createCmdBuffers(
+        commandPool,
+        frames,
+        loadingCmdBuffer,
+        device,
+        queueFamilyIndex
+    );
 
     initImgui();
+
+    vertexBuffer = createVertexBuffer(*allocator);
+    writeVertexBuffer(*vertexBuffer, queue, loadingCmdBuffer);
+
     state.lastRenderTimestamp = getTimestampMs();
 }
 
@@ -919,15 +943,15 @@ void VulkanApp::drawFrame() {
             .pColorAttachments = &attachmentInfo
         };
         frame.cmdBuffer.beginRendering(renderingInfo);
-        frame.cmdBuffer.bindPipeline(
-            vk::PipelineBindPoint::eGraphics,
-            *graphicsPipeline
-        );
         frame.cmdBuffer.setViewport(
             0, vk::Viewport(0.0f, 0.0f, width, height, 0.0f, 1.0f)
         );
         frame.cmdBuffer.setScissor(
             0, vk::Rect2D(vk::Offset2D(0, 0), swapChain.extent)
+        );
+        frame.cmdBuffer.bindPipeline(
+            vk::PipelineBindPoint::eGraphics,
+            *graphicsPipeline
         );
         frame.cmdBuffer.bindVertexBuffers(
             0, vertexBuffer->getVkBuffer(), {0}
