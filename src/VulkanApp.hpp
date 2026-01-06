@@ -25,7 +25,7 @@
 #include "utils.hpp"
 
 constexpr int MAX_FRAMES_IN_FLIGHT = 2;
-constexpr bool ENABLE_VALIDATION_LAYERS = IS_DEBUG;
+constexpr bool ENABLE_VALIDATION_LAYERS = !IS_RELEASE;
 inline const std::vector<char const*> validationLayers = {
     "VK_LAYER_KHRONOS_validation"
 };

@@ -107,7 +107,11 @@ vk::raii::Instance createInstance(const vk::raii::Context& context) {
     // Get the required layers
     std::vector<char const*> requiredLayers;
     if (ENABLE_VALIDATION_LAYERS) {
+        std::println("Enable validation layers.");
         requiredLayers.assign(validationLayers.begin(), validationLayers.end());
+    }
+    else {
+        std::println("Release mode. Disable validation layers.");
     }
 
     // Check if the required layers are supported by the Vulkan implementation.

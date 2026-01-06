@@ -9,8 +9,8 @@
 #include <type_traits>
 #include <vector>
 
-constexpr bool IS_DEBUG =
-#ifdef _DEBUG
+constexpr bool IS_RELEASE =
+#ifdef NDEBUG
     true;
 #else
     false;
