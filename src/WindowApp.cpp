@@ -7,6 +7,7 @@
 #include <stdexcept>
 
 // vulkan
+#include <tuple>
 #include <vulkan/vulkan_raii.hpp>
 
 // glfw
@@ -21,7 +22,7 @@ void WindowApp::resizeCallBackHelper(GLFWwindow* window, int width, int height) 
     assert(windowPtr != nullptr);
     WindowApp* self = reinterpret_cast<WindowApp*>(windowPtr);
     assert(window == self->window.get());
-    std::println("Resized: {}x{}", width, height);
+    self->getScale();
     self->resizeCallBack(width, height);
 }
 
@@ -30,9 +31,8 @@ WindowApp::WindowApp(int width, int height, std::string_view tittle) {
 
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
     glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
-    glfwWindowHint(GLFW_SCALE_TO_MONITOR, GLFW_FALSE);
+    glfwWindowHint(GLFW_SCALE_TO_MONITOR, GLFW_TRUE);
     glfwWindowHint(GLFW_SCALE_FRAMEBUFFER, GLFW_TRUE);
-
 
     window.reset(glfwCreateWindow(
         width,
@@ -46,29 +46,6 @@ WindowApp::WindowApp(int width, int height, std::string_view tittle) {
     glfwSetFramebufferSizeCallback(
         window.get(),
         &resizeCallBackHelper
-    );
-
-    auto fbSize = getFrameSize();
-    if (fbSize.height == height) {
-        scalingType = WINDOWS_OR_X11;
-        float scale = getScale();
-        width *= scale;
-        height *= scale;
-        fbSize.height *= scale;
-        fbSize.width *= scale;
-        glfwSetWindowSize(window.get(), width, height);
-    }
-    else {
-        scalingType = MAC_OR_WAYLAND;
-    }
-
-    std::println(
-        "Created a GLFW window; Size:{} x {}; Framebuffer Size: {}x{}, Scale method: {}",
-        width,
-        height,
-        fbSize.width,
-        fbSize.height,
-        scalingType == WINDOWS_OR_X11 ? "win/x11" : "mac/wayland"
     );
 
     ImGui::CreateContext();
@@ -115,8 +92,23 @@ vk::raii::SurfaceKHR WindowApp::createSurface(const vk::raii::Instance& instance
     return {instance, surface};
 }
 
-float WindowApp::getScale() const {
+std::tuple<WindowApp::ScalingType, float> WindowApp::getScale() {
+    auto winSize = getWindowSize();
+    auto fbSize = getFrameSize();
+    scalingType = fbSize.height == winSize.height ? WINDOWS_OR_X11 : MAC_OR_WAYLAND;
     float xscale, yscale;
     glfwGetWindowContentScale(window.get(), &xscale, &yscale);
-    return xscale / 2 + yscale / 2;
+    float scale = xscale / 2 + yscale / 2;
+
+    std::println(
+        "[Window] Size:{} x {}; Framebuffer Size: {}x{}; scale: {}; Scale method: {}.",
+        winSize.width,
+        winSize.height,
+        fbSize.width,
+        fbSize.height,
+        scale,
+        scalingType == WINDOWS_OR_X11 ? "win/x11" : "mac/wayland"
+    );
+
+    return {scalingType, scale};
 };

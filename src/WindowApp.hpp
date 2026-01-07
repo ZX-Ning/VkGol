@@ -53,7 +53,7 @@ public:
     Size2D<int> getFrameSize() const;
     bool isMinimized() const;
     vk::raii::SurfaceKHR createSurface(const vk::raii::Instance& instance);
-    float getScale() const;
+    std::tuple<ScalingType, float>  getScale();
 };
 
 #endif  // WINDOWAPP_HPP

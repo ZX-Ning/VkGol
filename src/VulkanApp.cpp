@@ -777,8 +777,8 @@ void VulkanApp::initImgui() {
     style->WindowPadding = {8, 5};
     style->FramePadding = {3, 2};
 
-    float scale = windowApp->getScale();
-    if (windowApp->scalingType == WindowApp::WINDOWS_OR_X11) {
+    auto [scaleType, scale] = windowApp->getScale();
+    if (scaleType == WindowApp::WINDOWS_OR_X11) {
         style->FontScaleDpi = scale;
         style->ScaleAllSizes(scale);
     }

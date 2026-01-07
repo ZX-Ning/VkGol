@@ -8,6 +8,7 @@
 #include <fstream>
 #include <type_traits>
 #include <vector>
+#include <span>
 
 constexpr bool IS_RELEASE =
 #ifdef NDEBUG
