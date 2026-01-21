@@ -11,61 +11,21 @@
 #include <vulkan/vulkan_raii.hpp>
 #include <vulkan/vulkan_structs.hpp>
 
-// VMA
-#include <vk_mem_alloc.h>
-
 // glfw
 #include <GLFW/glfw3.h>
 #include <vulkan/vulkan_core.h>
 
 // project
 #include "VmaBuffer.hpp"
-#include "VulkanUtils.hpp"
-#include "WindowApp.hpp"
 #include "utils.hpp"
-
-constexpr int MAX_FRAMES_IN_FLIGHT = 2;
-constexpr bool ENABLE_VALIDATION_LAYERS = !IS_RELEASE;
-inline const std::vector<char const*> validationLayers = {
-    "VK_LAYER_KHRONOS_validation"
-};
-inline const std::vector<const char*> requiredDeviceExtension = {
-    vk::KHRSwapchainExtensionName,
-    vk::KHRSpirv14ExtensionName,
-    vk::KHRSynchronization2ExtensionName,
-    vk::KHRCreateRenderpass2ExtensionName,
-    vk::KHRDynamicRenderingExtensionName,
-    vk::EXTMemoryBudgetExtensionName
-};
 
 // forward declaration
 class WindowApp;
+class VulkanContext;
+class SwapChain;
 ////////////////////////
-
 class VulkanApp {
 public:
-    struct SurfaceImages {
-        vk::Image image;
-        vk::raii::ImageView imageView{nullptr};
-        // vk::raii::ImageView imageViewNorm;
-        vk::raii::Semaphore renderComplete{nullptr};
-    };
-    struct SwapChain {
-        vk::raii::SwapchainKHR swapChain{nullptr};
-        vk::SurfaceFormatKHR surfaceFormat;
-        vk::Extent2D extent;
-        std::vector<SurfaceImages> images;
-        void reset() {
-            // Don't use release, which does not delete the resource.
-            swapChain = nullptr;
-            extent = vk::Extent2D{0, 0},
-            images.clear();
-        }
-    };
-    // struct SimpleBuffer {
-    //     vk::raii::Buffer buffer{nullptr};
-    //     vk::raii::DeviceMemory memory{nullptr};
-    // };
     struct Frame {
         vk::raii::CommandBuffer cmdBuffer{nullptr};
         vk::raii::Semaphore presentComplete{nullptr};
@@ -79,36 +39,27 @@ public:
     };
 
 private:
+    std::unique_ptr<VulkanContext> context; 
+    std::unique_ptr<SwapChain> swapChain;
     std::unique_ptr<WindowApp> windowApp;
-    vk::raii::Context context;
-    vk::raii::Instance instance{nullptr};
-    vk::raii::DebugUtilsMessengerEXT debugMessenger{nullptr};
-    vk::raii::PhysicalDevice physicalDevice{nullptr};
-    vk::raii::Device device{nullptr};
-    vk::raii::SurfaceKHR surface{nullptr};
-    vk::raii::Queue queue{nullptr};
-    vk::raii::CommandPool commandPool{nullptr};
-    vk::raii::CommandBuffer loadingCmdBuffer{nullptr};
     std::vector<Frame> frames;
-    SwapChain swapChain;
-    VmaAllocatorWrapper allocator;
+
     vk::raii::Pipeline graphicsPipeline{nullptr};
     std::shared_ptr<StaticBuffer> vertexBuffer;
-    uint32_t minImageCount;
-    uint32_t queueFamilyIndex = ~0;
+    // uint32_t minImageCount;
     uint32_t frameIndex = 0;
     AppState state;
 
     bool framebufferResized = false;
     void init();
     void initImgui();
-    void recreateSwapChain();
+    void initFrames();
     void drawFrame();
 
 public:
     explicit VulkanApp(std::unique_ptr<WindowApp>&& window);
+    ~VulkanApp();
     void run();
-
     DISABLE_COPY(VulkanApp)
 };
 
