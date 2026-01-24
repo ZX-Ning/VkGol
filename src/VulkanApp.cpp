@@ -349,10 +349,12 @@ void VulkanApp::initImgui() {
         [](const char* name, void* data) {
             const vk::Instance* instance =
                 reinterpret_cast<const vk::Instance*>(data);
-            auto dispatcher = VulkanContext::getStaticInstanceDispatcher();
-            return dispatcher->vkGetInstanceProcAddr(*instance, name);
+            VulkanContext* runningContext = VulkanContext::runningIntance();
+            return runningContext
+                ->getDispatcher()
+                ->vkGetInstanceProcAddr(*instance, name);
         },
-        (void*)(&*context->instance)
+        (void*)(&*context->instance)  // using c-style cast for const + reinterpret cast
     );
 
     ImGui_ImplVulkan_Init(&initInfo);

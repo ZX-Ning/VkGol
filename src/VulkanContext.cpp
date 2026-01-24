@@ -3,7 +3,9 @@
 #include <GLFW/glfw3.h>
 #include <vk_mem_alloc.h>
 
+#include <cassert>
 #include <print>
+#include <stdexcept>
 #include <vulkan/vulkan_raii.hpp>
 
 #include "VulkanApp.hpp"
@@ -25,11 +27,10 @@ const std::vector<const char*> requiredDeviceExtension = {
     vk::EXTMemoryBudgetExtensionName
 };
 
-// Static pointer to dispatchers to make Imgui and VMA work,
-// Ugly but can not found other solutions.
-// Require only one VulkanApp at a time.
-static vk::raii::detail::InstanceDispatcher* instanceDispatcher;
-static vk::raii::detail::DeviceDispatcher* deviceDispatcher;
+VulkanContext*& singletonHelper() {
+    static VulkanContext* singleton;
+    return singleton;
+}
 
 std::vector<const char*> getRequiredExtensions() {
     uint32_t glfwExtensionCount = 0;
@@ -218,13 +219,18 @@ vk::raii::PhysicalDevice pickPhysicalDevice(vk::raii::Instance& instance) {
 }  // namespace
 
 VulkanContext::VulkanContext(WindowApp& windowApp) {
+    std::println("Starting Vulkan instance.");
+    auto& singleton = singletonHelper();
+    if (singleton != nullptr) {
+        throw std::runtime_error("Can not run multiple VulkanContext!");
+    }
+    singleton = this;
+
     instance = createInstance(context);
     debugMessenger = setupDebugMessenger(instance);
     surface = windowApp.createSurface(instance);
     physicalDevice = pickPhysicalDevice(instance);
     initLogicalDevice();
-    instanceDispatcher = const_cast<decltype(instanceDispatcher)>(instance.getDispatcher());
-    deviceDispatcher = const_cast<decltype(deviceDispatcher)>(device.getDispatcher());
     initVmaAllocator();
     // Create command pool
     vk::CommandPoolCreateInfo poolInfo{
@@ -241,9 +247,28 @@ VulkanContext::VulkanContext(WindowApp& windowApp) {
         std::move(device.allocateCommandBuffers(allocInfo)[0]);
 }
 
-vk::raii::detail::InstanceDispatcher* VulkanContext::getStaticInstanceDispatcher() {
-    return instanceDispatcher;
-}
+VulkanContext::~VulkanContext() {
+    std::println("Cleaning up Vulkan instance.");
+    auto& singleton = singletonHelper();
+    assert(singleton != nullptr);
+    singleton = nullptr;
+};
+
+const vk::raii::detail::InstanceDispatcher* VulkanContext::getDispatcher() const {
+    return instance.getDispatcher();
+};
+
+VulkanContext* VulkanContext::runningIntance() {
+    auto& singleton = singletonHelper();
+    if (singleton == nullptr) {
+        throw std::runtime_error("No instance running");
+    }
+    return singleton;
+};
+
+/**
+ * Has same lifetime as this.
+ */
 
 void VulkanContext::initLogicalDevice() {
     std::vector<vk::QueueFamilyProperties> queueFamilyProperties =
@@ -300,12 +325,14 @@ void VulkanContext::initVmaAllocator() {
     VmaVulkanFunctions functions = {
         .vkGetInstanceProcAddr =
             [](VkInstance instance, const char* pName) {
-                return instanceDispatcher
+                return singletonHelper()
+                    ->instance.getDispatcher()
                     ->vkGetInstanceProcAddr(instance, pName);
             },
         .vkGetDeviceProcAddr =
             [](VkDevice device, const char* pName) {
-                return deviceDispatcher
+                return singletonHelper()
+                    ->device.getDispatcher()
                     ->vkGetDeviceProcAddr(device, pName);
             }
     };

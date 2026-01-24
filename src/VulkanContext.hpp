@@ -4,6 +4,7 @@
 #include <vulkan/vulkan_raii.hpp>
 
 #include "VulkanUtils.hpp"
+#include "utils.hpp"
 
 class WindowApp;
 
@@ -21,8 +22,15 @@ struct VulkanContext {
     VmaAllocatorWrapper allocator;
     void initLogicalDevice();
     void initVmaAllocator();
-    VulkanContext(WindowApp& windowApp);
-    static vk::raii::detail::InstanceDispatcher* getStaticInstanceDispatcher();
+    explicit VulkanContext(WindowApp&);
+    ~VulkanContext();
+    const vk::raii::detail::InstanceDispatcher* getDispatcher() const;
+    
+    static VulkanContext* runningIntance();
+
+    DISABLE_COPY(VulkanContext)
+    VulkanContext(VulkanContext&&) = default;
+    VulkanContext& operator=(VulkanContext&&) = default;
 };
 
 #endif  // VULKANCONTEXT_HPP

@@ -26,7 +26,7 @@ class SwapChain;
 ////////////////////////
 class VulkanApp {
 public:
-    struct Frame {
+    struct FrameData {
         vk::raii::CommandBuffer cmdBuffer{nullptr};
         vk::raii::Semaphore presentComplete{nullptr};
         vk::raii::Fence fences{nullptr};
@@ -42,7 +42,7 @@ private:
     std::unique_ptr<VulkanContext> context; 
     std::unique_ptr<SwapChain> swapChain;
     std::unique_ptr<WindowApp> windowApp;
-    std::vector<Frame> frames;
+    std::vector<FrameData> frames;
 
     vk::raii::Pipeline graphicsPipeline{nullptr};
     std::shared_ptr<StaticBuffer> vertexBuffer;
