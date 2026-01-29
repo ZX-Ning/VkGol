@@ -1,6 +1,6 @@
 #include "Swapchain.hpp"
 
-#include <print>
+#include <vulkan/vulkan_enums.hpp>
 #include <vulkan/vulkan_raii.hpp>
 
 #include "VulkanContext.hpp"
@@ -24,29 +24,6 @@ vk::Extent2D chooseSwapExtent(
     };
 }
 
-vk::SurfaceFormatKHR chooseSwapSurfaceFormat(
-    const std::vector<vk::SurfaceFormatKHR>& availableFormats
-) {
-    assert(!availableFormats.empty());
-    for (const auto& format : availableFormats) {
-        if ((format.format == vk::Format::eB8G8R8A8Srgb ||
-             format.format == vk::Format::eR8G8B8A8Srgb) &&
-            format.colorSpace == vk::ColorSpaceKHR::eSrgbNonlinear) {
-            return format;
-        }
-    }
-    for (const auto& format : availableFormats) {
-        if ((format.format == vk::Format::eB8G8R8A8Unorm ||
-             format.format == vk::Format::eR8G8B8A8Unorm) &&
-            format.colorSpace == vk::ColorSpaceKHR::eSrgbNonlinear) {
-            std::println("Can not found Srgb Format, using Unorm.");
-            return format;
-        }
-    }
-    throw std::runtime_error("Format not supported yet");
-    // return availableFormats[0];
-}
-
 uint32_t chooseSwapMinImageCount(const vk::SurfaceCapabilitiesKHR& surfaceCapabilities) {
     auto minImageCount = std::max(3u, surfaceCapabilities.minImageCount);
     if ((0 < surfaceCapabilities.maxImageCount) &&
@@ -65,6 +42,7 @@ vk::PresentModeKHR chooseSwapPresentMode(
     //     }
     // }
     return vk::PresentModeKHR::eFifo;
+    // return vk::PresentModeKHR::eImmediate;
 }
 }  // namespace
 
@@ -75,9 +53,7 @@ void SwapChain::init(const VulkanContext& context, Size2D<uint32_t> size) {
         surfaceCapabilities,
         vk::Extent2D{size.width, size.height}
     );
-    this->surfaceFormat = chooseSwapSurfaceFormat(
-        context.physicalDevice.getSurfaceFormatsKHR(context.surface)
-    );
+    this->surfaceFormat = context.surfaceForamt;
     minImageCount = chooseSwapMinImageCount(
         context.physicalDevice.getSurfaceCapabilitiesKHR(context.surface)
     );

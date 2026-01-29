@@ -1,29 +1,30 @@
 #ifndef BUFFER_HPP
 #define BUFFER_HPP
 
+// vma
 #include <vk_mem_alloc.h>
-#include <vulkan/vulkan_core.h>
 
+// c++
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
 #include <memory>
+
+// vulkan
 #include <vulkan/vulkan.hpp>
-#include <vulkan/vulkan_enums.hpp>
-#include <vulkan/vulkan_handles.hpp>
 #include <vulkan/vulkan_raii.hpp>
 #include <vulkan/vulkan_structs.hpp>
 
-#include "utils.hpp"
+#include "../utils.hpp"
 
-class AbstractVmaBuffer {
+class LoadedBuffer {
 protected:
     vk::Buffer buffer;
     VmaAllocation allocation;
-    VmaAllocator allocator;
+    const VmaAllocator& allocator;
     VmaAllocationInfo resultInfo;
     vk::DeviceSize size;
-    AbstractVmaBuffer(
+    LoadedBuffer(
         const vk::BufferCreateInfo& info,
         const VmaAllocationCreateInfo& allocInfo,
         const VmaAllocator& allocator
@@ -31,14 +32,15 @@ protected:
 
 public:
     vk::Buffer getVkBuffer() const;
-    AbstractVmaBuffer() = delete;
-    virtual ~AbstractVmaBuffer();
-    DISABLE_COPY(AbstractVmaBuffer)
-    AbstractVmaBuffer(AbstractVmaBuffer&&) = delete;
-    AbstractVmaBuffer& operator=(AbstractVmaBuffer&&) = delete;
+    LoadedBuffer() = delete;
+    // rule o 5:
+    virtual ~LoadedBuffer();
+    DISABLE_COPY(LoadedBuffer)
+    LoadedBuffer(LoadedBuffer&&) = delete;
+    LoadedBuffer& operator=(LoadedBuffer&&) = delete;
 };
 
-class DynamicBuffer : public AbstractVmaBuffer {
+class DynamicBuffer : public LoadedBuffer {
 public:
     DynamicBuffer(
         const vk::BufferCreateInfo& info,
@@ -49,10 +51,9 @@ public:
     virtual void update(std::span<const uint8_t> data);
 };
 
-class StaticBuffer : public AbstractVmaBuffer {
+class StaticBuffer : public LoadedBuffer {
 private:
     std::unique_ptr<DynamicBuffer> stagging;
-    static void copyBuffer(vk::Buffer src, vk::Buffer dst, vk::raii::CommandBuffer& cmd, vk::DeviceSize size);
 
 public:
     StaticBuffer(
@@ -60,13 +61,20 @@ public:
         const VmaAllocationCreateInfo& allocInfo,
         const VmaAllocator& allocator
     );
+    static void copyBuffer(vk::Buffer src, vk::Buffer dst, vk::raii::CommandBuffer& cmd, vk::DeviceSize size);
     virtual void load(std::span<const uint8_t> data, vk::raii::CommandBuffer& cmd);
     void deleteStagging();
 };
 
 struct BufferFactory {
-    static std::shared_ptr<StaticBuffer> createVertexBuffer(const VmaAllocator allocator, size_t size);
-    static std::unique_ptr<DynamicBuffer> createStaggingBuffer(size_t size, VmaAllocator allocator);
+    enum class Type {
+        Vertex,
+        Index,
+        Uniform
+    };
+    static std::shared_ptr<StaticBuffer> createStaticBuffer(Type type, const VmaAllocator& allocator, size_t size);
+    static std::shared_ptr<DynamicBuffer> createDynamicBuffer(Type type, const VmaAllocator& allocator, size_t size);
+    static std::unique_ptr<DynamicBuffer> createStaggingBuffer(const VmaAllocator& allocator, size_t size);
 };
 
 #endif  // BUFFER_HPP

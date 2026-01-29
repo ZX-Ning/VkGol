@@ -20,173 +20,21 @@
 #include <vulkan/vulkan_to_string.hpp>
 
 // imgui
+#include <backends/imgui_impl_glfw.h>
 #include <backends/imgui_impl_vulkan.h>
 #include <imgui.h>
 
 // project
-#include "Swapchain.hpp"
-#include "VmaBuffer.hpp"
-#include "VulkanContext.hpp"
+#include "SimpleModel.hpp"
 #include "WindowApp.hpp"
-#include "backends/imgui_impl_glfw.h"
+#include "core/RenderPipeline.hpp"
+#include "core/Swapchain.hpp"
+#include "core/UniformData.hpp"
+#include "core/VulkanContext.hpp"
 #include "utils.hpp"
-#include "vertex.hpp"
 
 namespace {
 constexpr int MAX_FRAMES_IN_FLIGHT = 2;
-
-void transitionImageLayout(
-    const vk::Image& image,
-    const vk::raii::CommandBuffer& commandBuffer,
-    vk::ImageLayout old_layout,
-    vk::ImageLayout new_layout,
-    vk::AccessFlags2 src_access_mask,
-    vk::AccessFlags2 dst_access_mask,
-    vk::PipelineStageFlags2 src_stage_mask,
-    vk::PipelineStageFlags2 dst_stage_mask
-) {
-    vk::ImageMemoryBarrier2 barrier = {
-        .srcStageMask = src_stage_mask,
-        .srcAccessMask = src_access_mask,
-        .dstStageMask = dst_stage_mask,
-        .dstAccessMask = dst_access_mask,
-        .oldLayout = old_layout,
-        .newLayout = new_layout,
-        .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
-        .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
-        .image = image,
-        .subresourceRange = {
-            .aspectMask = vk::ImageAspectFlagBits::eColor,
-            .baseMipLevel = 0,
-            .levelCount = 1,
-            .baseArrayLayer = 0,
-            .layerCount = 1
-        }
-    };
-    vk::DependencyInfo dependency_info = {
-        .dependencyFlags = {},
-        .imageMemoryBarrierCount = 1,
-        .pImageMemoryBarriers = &barrier
-    };
-    commandBuffer.pipelineBarrier2(dependency_info);
-}
-
-vk::raii::ShaderModule createShaderModule(const vk::raii::Device& device, const std::span<char> spv) {
-    vk::ShaderModuleCreateInfo createInfo{
-        .codeSize = spv.size() * sizeof(char),
-        .pCode = reinterpret_cast<const uint32_t*>(spv.data())
-    };
-    vk::raii::ShaderModule shaderModule{device, createInfo};
-
-    return shaderModule;
-}
-
-vk::raii::Pipeline createGraphicsPipeline(
-    const vk::raii::Device& device, vk::SurfaceFormatKHR surfaceFormat
-) {
-    std::vector<char> spv = readFile("shaders/shader.spv");
-    vk::raii::ShaderModule shaderModule =
-        createShaderModule(device, spv);
-
-    vk::PipelineShaderStageCreateInfo vertShaderStageInfo{
-        .stage = vk::ShaderStageFlagBits::eVertex,
-        .module = shaderModule,
-        .pName = "vertMain"
-    };
-    vk::PipelineShaderStageCreateInfo fragShaderStageInfo{
-        .stage = vk::ShaderStageFlagBits::eFragment,
-        .module = shaderModule,
-        .pName = "fragMain"
-    };
-    vk::PipelineShaderStageCreateInfo shaderStages[] = {
-        vertShaderStageInfo, fragShaderStageInfo
-    };
-
-    auto bindingDescription = SimpleVertex::bindingDescription();
-    auto attributeDescriptions = SimpleVertex::attributeDescriptions();
-
-    vk::PipelineVertexInputStateCreateInfo vertexInputInfo{
-        .vertexBindingDescriptionCount = 1,
-        .pVertexBindingDescriptions = &bindingDescription,
-        .vertexAttributeDescriptionCount = attributeDescriptions.size(),
-        .pVertexAttributeDescriptions = attributeDescriptions.data()
-    };
-    vk::PipelineInputAssemblyStateCreateInfo inputAssembly{
-        .topology = vk::PrimitiveTopology::eTriangleList
-    };
-    vk::PipelineViewportStateCreateInfo viewportState{
-        .viewportCount = 1, .scissorCount = 1
-    };
-
-    vk::PipelineRasterizationStateCreateInfo rasterizer{
-        .depthClampEnable = vk::False,
-        .rasterizerDiscardEnable = vk::False,
-        .polygonMode = vk::PolygonMode::eFill,
-        .cullMode = vk::CullModeFlagBits::eBack,
-        .frontFace = vk::FrontFace::eClockwise,
-        .depthBiasEnable = vk::False,
-        .depthBiasSlopeFactor = 1.0f,
-        .lineWidth = 1.0f
-    };
-
-    vk::PipelineMultisampleStateCreateInfo multisampling{
-        .rasterizationSamples = vk::SampleCountFlagBits::e1,
-        .sampleShadingEnable = vk::False
-    };
-
-    vk::PipelineColorBlendAttachmentState colorBlendAttachment{
-        .blendEnable = vk::False,
-        .colorWriteMask = vk::ColorComponentFlagBits::eR |
-                          vk::ColorComponentFlagBits::eG |
-                          vk::ColorComponentFlagBits::eB |
-                          vk::ColorComponentFlagBits::eA
-    };
-
-    vk::PipelineColorBlendStateCreateInfo colorBlending{
-        .logicOpEnable = vk::False,
-        .logicOp = vk::LogicOp::eCopy,
-        .attachmentCount = 1,
-        .pAttachments = &colorBlendAttachment
-    };
-
-    std::vector dynamicStates = {vk::DynamicState::eViewport, vk::DynamicState::eScissor};
-    vk::PipelineDynamicStateCreateInfo dynamicState{
-        .dynamicStateCount = static_cast<uint32_t>(dynamicStates.size()),
-        .pDynamicStates = dynamicStates.data()
-    };
-
-    vk::PipelineLayoutCreateInfo pipelineLayoutInfo{
-        .setLayoutCount = 0, .pushConstantRangeCount = 0
-    };
-
-    vk::raii::PipelineLayout pipelineLayout(device, pipelineLayoutInfo);
-
-    vk::StructureChain pipelineCreateInfoChain{
-        vk::GraphicsPipelineCreateInfo{
-            .stageCount = 2,
-            .pStages = shaderStages,
-            .pVertexInputState = &vertexInputInfo,
-            .pInputAssemblyState = &inputAssembly,
-            .pViewportState = &viewportState,
-            .pRasterizationState = &rasterizer,
-            .pMultisampleState = &multisampling,
-            .pColorBlendState = &colorBlending,
-            .pDynamicState = &dynamicState,
-            .layout = pipelineLayout,
-            .renderPass = nullptr
-        },
-        vk::PipelineRenderingCreateInfo{
-            .colorAttachmentCount = 1,
-            .pColorAttachmentFormats = &surfaceFormat.format
-        }
-    };
-
-    return {
-        device,
-        nullptr,
-        pipelineCreateInfoChain.get<vk::GraphicsPipelineCreateInfo>()
-    };
-}
 
 uint32_t findMemoryType(
     const vk::raii::PhysicalDevice& physicalDevice,
@@ -202,36 +50,6 @@ uint32_t findMemoryType(
     }
 
     throw std::runtime_error("failed to find suitable memory type!");
-}
-
-std::shared_ptr<StaticBuffer> createVertexBuffer(
-    const VmaAllocator& allocator
-) {
-    const auto& vertices = TRAINGLE;
-    // create vertex buffer
-    return BufferFactory::createVertexBuffer(allocator, getVectorSize(TRAINGLE));
-}
-
-void writeVertexBuffer(
-    StaticBuffer& vertBuffer,
-    vk::raii::Queue& queue,
-    vk::raii::CommandBuffer& cmd
-) {
-    const auto& vertices = TRAINGLE;
-    cmd.begin(
-        vk::CommandBufferBeginInfo{
-            .flags = vk::CommandBufferUsageFlagBits::eOneTimeSubmit
-        }
-    );
-    vertBuffer.load(asRawBytes(TRAINGLE), cmd);
-    cmd.end();
-
-    const vk::SubmitInfo submitInfo{
-        .commandBufferCount = 1,
-        .pCommandBuffers = &*cmd,
-    };
-    queue.submit(submitInfo);
-    queue.waitIdle();
 }
 
 void drawImgui(vk::raii::CommandBuffer& buffer, VulkanApp::AppState& state) {
@@ -261,20 +79,15 @@ void drawImgui(vk::raii::CommandBuffer& buffer, VulkanApp::AppState& state) {
     ImGui_ImplVulkan_RenderDrawData(draw_data, *buffer);
 }
 
-// TODO: ADD MORE FUNCTION HERE
 }  // namespace
 
 void VulkanApp::init() {
     Size2D<uint32_t> size = windowApp->getFrameSize();
     context.reset(new VulkanContext(*windowApp));
     swapChain.reset(new SwapChain(*context, size));
-    graphicsPipeline = createGraphicsPipeline(
-        context->device, swapChain->surfaceFormat
-    );
     initFrames();
     initImgui();
-    vertexBuffer = createVertexBuffer(*(context->allocator));
-    writeVertexBuffer(*vertexBuffer, context->queue, context->loadingCmdBuffer);
+    model = loadSimpleTraingleModel(*context);
     state.lastRenderTimestamp = getTimestampMs();
 }
 
@@ -333,7 +146,7 @@ void VulkanApp::initImgui() {
         .Device = *context->device,
         .QueueFamily = context->queueFamilyIndex,
         .Queue = *context->queue,
-        .DescriptorPoolSize = 1 << 4,
+        .DescriptorPoolSize = 0xff,
         .MinImageCount = swapChain->minImageCount,
         .ImageCount = static_cast<uint32_t>(swapChain->images.size()),
         .PipelineInfoMain = {
@@ -347,21 +160,31 @@ void VulkanApp::initImgui() {
     ImGui_ImplVulkan_LoadFunctions(
         VK_API_VERSION_1_3,
         [](const char* name, void* data) {
-            const vk::Instance* instance =
-                reinterpret_cast<const vk::Instance*>(data);
-            VulkanContext* runningContext = VulkanContext::runningIntance();
-            return runningContext
+            auto instance =
+                reinterpret_cast<const vk::raii::Instance*>(data);
+            return instance
                 ->getDispatcher()
-                ->vkGetInstanceProcAddr(*instance, name);
+                ->vkGetInstanceProcAddr(**instance, name);
         },
-        (void*)(&*context->instance)  // using c-style cast for const + reinterpret cast
+        (void*)(&context->instance)  // using c-style cast for const + reinterpret cast
     );
 
     ImGui_ImplVulkan_Init(&initInfo);
-};
+}
 
 void VulkanApp::initFrames() {
     assert(frames.empty());
+    frames.resize(MAX_FRAMES_IN_FLIGHT);
+
+    // create uniform buffers first
+    for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+        frames[i].sceneUniformBuf = BufferFactory::createDynamicBuffer(
+            BufferFactory::Type::Uniform,
+            *context->allocator,
+            sizeof(DefaultScenceUBO)
+        );
+    }
+
     vk::CommandBufferAllocateInfo allocInfo{
         .commandPool = context->commandPool,
         .level = vk::CommandBufferLevel::ePrimary,
@@ -369,15 +192,47 @@ void VulkanApp::initFrames() {
     };
     vk::raii::CommandBuffers commandbufs{context->device, allocInfo};
 
+    auto layouts = *context->set0Layout;
+    std::vector<vk::DescriptorSetLayout> desSetLayouts(
+        MAX_FRAMES_IN_FLIGHT, layouts
+    );
+    vk::DescriptorSetAllocateInfo setAllocInfo{
+        .descriptorPool = context->descriptorPool,
+        .descriptorSetCount = static_cast<uint32_t>(desSetLayouts.size()),
+        .pSetLayouts = desSetLayouts.data()
+    };
+    vk::raii::DescriptorSets sets{context->device, setAllocInfo};
+
+    assert(commandbufs.size() == MAX_FRAMES_IN_FLIGHT);
+    assert(sets.size() == MAX_FRAMES_IN_FLIGHT);
+
     for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
-        frames.emplace_back(
-            std::move(commandbufs[i]),
-            vk::raii::Semaphore{context->device, vk::SemaphoreCreateInfo{}},
-            vk::raii::Fence{
-                context->device,
-                vk::FenceCreateInfo{.flags = vk::FenceCreateFlagBits::eSignaled}
+        frames[i].presentComplete = vk::raii::Semaphore{
+            context->device, vk::SemaphoreCreateInfo{}
+        };
+        frames[i].fences = vk::raii::Fence{
+            context->device, vk::FenceCreateInfo{.flags = vk::FenceCreateFlagBits::eSignaled}
+        };
+        frames[i].cmdBuffer = std::move(commandbufs[i]);
+        frames[i].sceneDescriptorSet = std::move(sets[i]);
+
+        // update DescriptorSets
+        vk::DescriptorBufferInfo bufferInfo{
+            .buffer = frames[i].sceneUniformBuf->getVkBuffer(),
+            .offset = 0,
+            .range = sizeof(DefaultScenceUBO)
+        };
+        std::array descriptorWrites{
+            vk::WriteDescriptorSet{
+                .dstSet = frames[i].sceneDescriptorSet,
+                .dstBinding = 0,
+                .dstArrayElement = 0,
+                .descriptorCount = 1,
+                .descriptorType = vk::DescriptorType::eUniformBuffer,
+                .pBufferInfo = &bufferInfo
             }
-        );
+        };
+        context->device.updateDescriptorSets(descriptorWrites, {});
     }
 }
 
@@ -394,19 +249,23 @@ void VulkanApp::drawFrame() {
     state.lastRenderTimestamp = timeNow;
     // Note: inFlightFences, presentCompleteSemaphores, and commandBuffers
     // are indexed by frameIndex, while renderFinishedSemaphores is indexed by imageIndex
-    auto& frame = frames[frameIndex];
+    auto& currentFrame = frames[frameIndex];
 
     vk::Result fenceResult = context->device.waitForFences(
-        *frame.fences, vk::True, UINT64_MAX
+        *currentFrame.fences, vk::True, UINT64_MAX
     );
     if (fenceResult != vk::Result::eSuccess) {
         throw std::runtime_error("failed to wait for fence!");
     }
-    context->device.resetFences(*frame.fences);
+    context->device.resetFences(*currentFrame.fences);
+
+    // update ubo
+    DefaultScenceUBO ubo{glm::fmat4(1), glm::fmat4(1)};
+    currentFrame.sceneUniformBuf->update(objectAsRawBytes(ubo));
 
     auto [result, imageIndex] = swapChain->swapChain.acquireNextImage(
         UINT64_MAX,
-        *frame.presentComplete,
+        *currentFrame.presentComplete,
         nullptr
     );
 
@@ -419,72 +278,122 @@ void VulkanApp::drawFrame() {
         throw std::runtime_error("failed to acquire swap chain image!");
     }
 
-    auto& image = swapChain->images[imageIndex];
-    frame.cmdBuffer.reset();
+    auto& currentImage = swapChain->images[imageIndex];
+    auto& currentCmdBuffer = currentFrame.cmdBuffer;
+    currentCmdBuffer.reset();
     auto width = static_cast<float>(swapChain->extent.width);
     auto height = static_cast<float>(swapChain->extent.height);
 
     // record commandBuffer
+    currentCmdBuffer.begin({});
     {
-        frame.cmdBuffer.begin({});
-        // Before starting rendering, transition the swapchain image to
-        // COLOR_ATTACHMENT_OPTIMAL
-        transitionImageLayout(
-            image.image,
-            frame.cmdBuffer,
-            vk::ImageLayout::eUndefined,
-            vk::ImageLayout::eColorAttachmentOptimal,
-            {},  // srcAccessMask (no need to wait for previous operations)
-            vk::AccessFlagBits2::eColorAttachmentWrite,
-            vk::PipelineStageFlagBits2::eColorAttachmentOutput,
-            vk::PipelineStageFlagBits2::eColorAttachmentOutput
+        // Before starting rendering, transition the swapchain image to COLOR_ATTACHMENT_OPTIMAL
+        vk::ImageMemoryBarrier2 barrierTop = {
+            .srcStageMask = vk::PipelineStageFlagBits2::eTopOfPipe,
+            .srcAccessMask = {},
+            .dstStageMask = vk::PipelineStageFlagBits2::eColorAttachmentOutput,
+            .dstAccessMask = vk::AccessFlagBits2::eColorAttachmentWrite,
+            .oldLayout = vk::ImageLayout::eUndefined,
+            .newLayout = vk::ImageLayout::eColorAttachmentOptimal,
+            .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+            .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+            .image = currentImage.image,
+            .subresourceRange = {
+                .aspectMask = vk::ImageAspectFlagBits::eColor,
+                .baseMipLevel = 0,
+                .levelCount = 1,
+                .baseArrayLayer = 0,
+                .layerCount = 1
+            }
+        };
+        currentCmdBuffer.pipelineBarrier2(
+            vk::DependencyInfo{
+                .dependencyFlags = {},
+                .imageMemoryBarrierCount = 1,
+                .pImageMemoryBarriers = &barrierTop
+            }
         );
-        vk::ClearValue clearColor = {state.clearColor.srgbToLinear()};
+
+        // Rendering:
         vk::RenderingAttachmentInfo attachmentInfo = vk::RenderingAttachmentInfo{
-            .imageView = image.imageView,
+            .imageView = currentImage.imageView,
             .imageLayout = vk::ImageLayout::eColorAttachmentOptimal,
             .loadOp = vk::AttachmentLoadOp::eClear,
             .storeOp = vk::AttachmentStoreOp::eStore,
-            .clearValue = clearColor
+            .clearValue = {state.clearColor.srgbToLinear()}
         };
-        vk::RenderingInfo renderingInfo = {
-            .renderArea = {
-                .offset = {0, 0},
-                .extent = swapChain->extent
-            },
-            .layerCount = 1,
-            .colorAttachmentCount = 1,
-            .pColorAttachments = &attachmentInfo
-        };
-        frame.cmdBuffer.beginRendering(renderingInfo);
-        frame.cmdBuffer.setViewport(
-            0, vk::Viewport(0.0f, 0.0f, width, height, 0.0f, 1.0f)
-        );
-        frame.cmdBuffer.setScissor(
-            0, vk::Rect2D(vk::Offset2D(0, 0), swapChain->extent)
-        );
-        frame.cmdBuffer.bindPipeline(
-            vk::PipelineBindPoint::eGraphics,
-            *graphicsPipeline
-        );
-        frame.cmdBuffer.bindVertexBuffers(
-            0, vertexBuffer->getVkBuffer(), {0}
-        );
-        frame.cmdBuffer.draw(3, 1, 0, 0);
-        drawImgui(frame.cmdBuffer, state);
-        frame.cmdBuffer.endRendering();
+        {
+            currentCmdBuffer.beginRendering(
+                vk::RenderingInfo{
+                    .renderArea = {
+                        .offset = {0, 0},
+                        .extent = swapChain->extent
+                    },
+                    .layerCount = 1,
+                    .colorAttachmentCount = 1,
+                    .pColorAttachments = &attachmentInfo
+                }
+            );
+            currentCmdBuffer.setViewport(
+                0,
+                vk::Viewport{
+                    0.0f,
+                    0.0f,
+                    width,
+                    height,
+                    0.0f,
+                    1.0f
+                }
+            );
+            currentCmdBuffer.setScissor(
+                0, vk::Rect2D(vk::Offset2D(0, 0), swapChain->extent)
+            );
+            currentCmdBuffer.bindDescriptorSets(
+                vk::PipelineBindPoint::eGraphics,
+                model.material.pipeline->layout,
+                0,
+                *currentFrame.sceneDescriptorSet,
+                nullptr
+            );
+            model.bind(currentCmdBuffer);
+            auto& layout = model.material.pipeline->layout;
+            vk::ArrayProxy<const DefaultPushConstant> constants{{glm::fmat4{1.f}}};
+            currentCmdBuffer.pushConstants(
+                layout, vk::ShaderStageFlagBits::eAllGraphics, 0, constants
+            );
+            model.render(currentCmdBuffer);
+
+            drawImgui(currentCmdBuffer, state);
+            currentCmdBuffer.endRendering();
+        }
+
         // After rendering, transition the swapchain image to PRESENT_SRC
-        transitionImageLayout(
-            image.image,
-            frame.cmdBuffer,
-            vk::ImageLayout::eColorAttachmentOptimal,
-            vk::ImageLayout::ePresentSrcKHR,
-            vk::AccessFlagBits2::eColorAttachmentWrite,
-            {},
-            vk::PipelineStageFlagBits2::eColorAttachmentOutput,
-            vk::PipelineStageFlagBits2::eBottomOfPipe
+        vk::ImageMemoryBarrier2 barrierBottom = {
+            .srcStageMask = vk::PipelineStageFlagBits2::eColorAttachmentOutput,
+            .srcAccessMask = vk::AccessFlagBits2::eColorAttachmentWrite,
+            .dstStageMask = vk::PipelineStageFlagBits2::eBottomOfPipe,
+            .dstAccessMask = {},
+            .oldLayout = vk::ImageLayout::eColorAttachmentOptimal,
+            .newLayout = vk::ImageLayout::ePresentSrcKHR,
+            .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+            .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+            .image = currentImage.image,
+            .subresourceRange = {
+                .aspectMask = vk::ImageAspectFlagBits::eColor,
+                .baseMipLevel = 0,
+                .levelCount = 1,
+                .baseArrayLayer = 0,
+                .layerCount = 1
+            }
+        };
+        currentCmdBuffer.pipelineBarrier2(
+            vk::DependencyInfo{
+                .dependencyFlags = {},
+                .imageMemoryBarrierCount = 1,
+                .pImageMemoryBarriers = &barrierBottom
+            }
         );
-        frame.cmdBuffer.end();
+        currentCmdBuffer.end();
     }
 
     vk::PipelineStageFlags waitDestinationStageMask(
@@ -492,19 +401,19 @@ void VulkanApp::drawFrame() {
     );
     const vk::SubmitInfo submitInfo{
         .waitSemaphoreCount = 1,
-        .pWaitSemaphores = &*frame.presentComplete,
+        .pWaitSemaphores = &*currentFrame.presentComplete,
         .pWaitDstStageMask = &waitDestinationStageMask,
         .commandBufferCount = 1,
-        .pCommandBuffers = &*frame.cmdBuffer,
+        .pCommandBuffers = &*currentFrame.cmdBuffer,
         .signalSemaphoreCount = 1,
-        .pSignalSemaphores = &*image.renderComplete,
+        .pSignalSemaphores = &*currentImage.renderComplete,
     };
-    context->queue.submit(submitInfo, *frame.fences);
+    context->queue.submit(submitInfo, *currentFrame.fences);
 
     try {
         const vk::PresentInfoKHR presentInfoKHR{
             .waitSemaphoreCount = 1,
-            .pWaitSemaphores = &*image.renderComplete,
+            .pWaitSemaphores = &*currentImage.renderComplete,
             .swapchainCount = 1,
             .pSwapchains = &(*swapChain->swapChain),
             .pImageIndices = &imageIndex
@@ -519,7 +428,6 @@ void VulkanApp::drawFrame() {
         }
     }
     catch (const vk::SystemError& e) {
-        int width, height;
         if (e.code().value() == static_cast<int>(vk::Result::eErrorOutOfDateKHR)) {
             swapChain->recreate(*context, size);
             return;
@@ -528,6 +436,7 @@ void VulkanApp::drawFrame() {
             throw;
         }
     }
+
     frameIndex++;
     frameIndex %= MAX_FRAMES_IN_FLIGHT;
 }

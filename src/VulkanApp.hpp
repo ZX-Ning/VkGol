@@ -16,7 +16,10 @@
 #include <vulkan/vulkan_core.h>
 
 // project
-#include "VmaBuffer.hpp"
+#include "Camera.hpp"
+#include "core/Buffer.hpp"
+#include "core/Model.hpp"
+#include "core/UniformData.hpp"
 #include "utils.hpp"
 
 // forward declaration
@@ -30,6 +33,8 @@ public:
         vk::raii::CommandBuffer cmdBuffer{nullptr};
         vk::raii::Semaphore presentComplete{nullptr};
         vk::raii::Fence fences{nullptr};
+        vk::raii::DescriptorSet sceneDescriptorSet{nullptr};
+        std::shared_ptr<DynamicBuffer> sceneUniformBuf;
     };
     struct AppState {
         RGBAColor clearColor{0.45f, 0.53f, 0.65f, 1.f};
@@ -39,13 +44,19 @@ public:
     };
 
 private:
-    std::unique_ptr<VulkanContext> context; 
+    std::unique_ptr<VulkanContext> context;
     std::unique_ptr<SwapChain> swapChain;
     std::unique_ptr<WindowApp> windowApp;
     std::vector<FrameData> frames;
 
-    vk::raii::Pipeline graphicsPipeline{nullptr};
-    std::shared_ptr<StaticBuffer> vertexBuffer;
+    Model model;
+    View view;
+    Camera camera;
+
+    DefaultScenceUBO ubo;
+
+    // vk::raii::Pipeline graphicsPipeline{nullptr};
+    // std::shared_ptr<StaticBuffer> vertexBuffer;
     // uint32_t minImageCount;
     uint32_t frameIndex = 0;
     AppState state;

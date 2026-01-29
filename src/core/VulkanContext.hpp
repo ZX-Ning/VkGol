@@ -2,9 +2,10 @@
 #define VULKANCONTEXT_HPP
 
 #include <vulkan/vulkan_raii.hpp>
+#include <vulkan/vulkan_structs.hpp>
 
+#include "../utils.hpp"
 #include "VulkanUtils.hpp"
-#include "utils.hpp"
 
 class WindowApp;
 
@@ -19,18 +20,19 @@ struct VulkanContext {
     vk::raii::CommandPool commandPool{nullptr};
     uint32_t queueFamilyIndex = ~0;
     vk::raii::CommandBuffer loadingCmdBuffer{nullptr};
+    vk::raii::DescriptorPool descriptorPool{nullptr};
+    vk::raii::DescriptorSetLayout set0Layout{nullptr};
+    vk::raii::DescriptorSetLayout set1Layout{nullptr};
     VmaAllocatorWrapper allocator;
+    vk::SurfaceFormatKHR surfaceForamt;
     void initLogicalDevice();
     void initVmaAllocator();
     explicit VulkanContext(WindowApp&);
     ~VulkanContext();
-    const vk::raii::detail::InstanceDispatcher* getDispatcher() const;
-    
-    static VulkanContext* runningIntance();
 
     DISABLE_COPY(VulkanContext)
-    VulkanContext(VulkanContext&&) = default;
-    VulkanContext& operator=(VulkanContext&&) = default;
+    VulkanContext(VulkanContext&&) = delete;
+    VulkanContext& operator=(VulkanContext&&) = delete;
 };
 
 #endif  // VULKANCONTEXT_HPP

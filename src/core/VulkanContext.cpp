@@ -7,10 +7,12 @@
 #include <print>
 #include <stdexcept>
 #include <vulkan/vulkan_raii.hpp>
+#include <vulkan/vulkan_structs.hpp>
 
-#include "VulkanApp.hpp"
-#include "WindowApp.hpp"
-#include "utils.hpp"
+#include "../WindowApp.hpp"
+#include "../utils.hpp"
+#include "Texture.hpp"
+#include "UniformData.hpp"
 
 namespace {
 
@@ -27,11 +29,6 @@ const std::vector<const char*> requiredDeviceExtension = {
     vk::EXTMemoryBudgetExtensionName
 };
 
-VulkanContext*& singletonHelper() {
-    static VulkanContext* singleton;
-    return singleton;
-}
-
 std::vector<const char*> getRequiredExtensions() {
     uint32_t glfwExtensionCount = 0;
     const char** glfwExtensions =
@@ -42,6 +39,29 @@ std::vector<const char*> getRequiredExtensions() {
         extensions.push_back(vk::EXTDebugUtilsExtensionName);
     }
     return extensions;
+}
+
+vk::SurfaceFormatKHR chooseSwapSurfaceFormat(
+    const std::vector<vk::SurfaceFormatKHR>& availableFormats
+) {
+    assert(!availableFormats.empty());
+    for (const auto& format : availableFormats) {
+        if ((format.format == vk::Format::eB8G8R8A8Srgb ||
+             format.format == vk::Format::eR8G8B8A8Srgb) &&
+            format.colorSpace == vk::ColorSpaceKHR::eSrgbNonlinear) {
+            return format;
+        }
+    }
+    for (const auto& format : availableFormats) {
+        if ((format.format == vk::Format::eB8G8R8A8Unorm ||
+             format.format == vk::Format::eR8G8B8A8Unorm) &&
+            format.colorSpace == vk::ColorSpaceKHR::eSrgbNonlinear) {
+            std::println("Can not found Srgb Format, using Unorm.");
+            return format;
+        }
+    }
+    throw std::runtime_error("Format not supported yet");
+    // return availableFormats[0];
 }
 
 vk::raii::Instance createInstance(const vk::raii::Context& context) {
@@ -216,20 +236,31 @@ vk::raii::PhysicalDevice pickPhysicalDevice(vk::raii::Instance& instance) {
     throw std::runtime_error("failed to find a suitable GPU!");
 }
 
+vk::raii::DescriptorPool createDescriptorPool(
+    const vk::raii::Device& device
+) {
+    std::vector<vk::DescriptorPoolSize> poolSizes{};
+    for (int i = 0; i <= 10; i++) {
+        poolSizes.push_back({(vk::DescriptorType)i, 1 << 10});
+    }
+    vk::DescriptorPoolCreateInfo poolInfo{
+        .flags = vk::DescriptorPoolCreateFlagBits::eFreeDescriptorSet,
+        .maxSets = static_cast<uint32_t>(1 << 12),
+        .poolSizeCount = static_cast<uint32_t>(poolSizes.size()),
+        .pPoolSizes = poolSizes.data()
+    };
+    return vk::raii::DescriptorPool(device, poolInfo);
+}
+
 }  // namespace
 
 VulkanContext::VulkanContext(WindowApp& windowApp) {
     std::println("Starting Vulkan instance.");
-    auto& singleton = singletonHelper();
-    if (singleton != nullptr) {
-        throw std::runtime_error("Can not run multiple VulkanContext!");
-    }
-    singleton = this;
 
-    instance = createInstance(context);
-    debugMessenger = setupDebugMessenger(instance);
-    surface = windowApp.createSurface(instance);
-    physicalDevice = pickPhysicalDevice(instance);
+    this->instance = createInstance(context);
+    this->debugMessenger = setupDebugMessenger(instance);
+    this->surface = windowApp.createSurface(instance);
+    this->physicalDevice = pickPhysicalDevice(instance);
     initLogicalDevice();
     initVmaAllocator();
     // Create command pool
@@ -237,7 +268,7 @@ VulkanContext::VulkanContext(WindowApp& windowApp) {
         .flags = vk::CommandPoolCreateFlagBits::eResetCommandBuffer,
         .queueFamilyIndex = queueFamilyIndex
     };
-    commandPool = vk::raii::CommandPool(device, poolInfo);
+    this->commandPool = vk::raii::CommandPool(device, poolInfo);
     vk::CommandBufferAllocateInfo allocInfo{
         .commandPool = commandPool,
         .level = vk::CommandBufferLevel::ePrimary,
@@ -245,30 +276,21 @@ VulkanContext::VulkanContext(WindowApp& windowApp) {
     };
     this->loadingCmdBuffer =
         std::move(device.allocateCommandBuffers(allocInfo)[0]);
+    this->surfaceForamt = chooseSwapSurfaceFormat(
+        physicalDevice.getSurfaceFormatsKHR(surface)
+    );
+    this->descriptorPool = createDescriptorPool(device);
+    this->set0Layout = vk::raii::DescriptorSetLayout(
+        device, {.bindingCount = 1, .pBindings = DefaultScenceUBO::descriptorSetLayoutBindings().data()}
+    );
+    this->set1Layout = vk::raii::DescriptorSetLayout(
+        device, {.bindingCount = 1, .pBindings = Texture::descriptorSetLayoutBindings().data()}
+    );
 }
 
 VulkanContext::~VulkanContext() {
     std::println("Cleaning up Vulkan instance.");
-    auto& singleton = singletonHelper();
-    assert(singleton != nullptr);
-    singleton = nullptr;
 };
-
-const vk::raii::detail::InstanceDispatcher* VulkanContext::getDispatcher() const {
-    return instance.getDispatcher();
-};
-
-VulkanContext* VulkanContext::runningIntance() {
-    auto& singleton = singletonHelper();
-    if (singleton == nullptr) {
-        throw std::runtime_error("No instance running");
-    }
-    return singleton;
-};
-
-/**
- * Has same lifetime as this.
- */
 
 void VulkanContext::initLogicalDevice() {
     std::vector<vk::QueueFamilyProperties> queueFamilyProperties =
@@ -324,17 +346,11 @@ void VulkanContext::initLogicalDevice() {
 void VulkanContext::initVmaAllocator() {
     VmaVulkanFunctions functions = {
         .vkGetInstanceProcAddr =
-            [](VkInstance instance, const char* pName) {
-                return singletonHelper()
-                    ->instance.getDispatcher()
-                    ->vkGetInstanceProcAddr(instance, pName);
-            },
+            instance.getDispatcher()
+                ->vkGetInstanceProcAddr,
         .vkGetDeviceProcAddr =
-            [](VkDevice device, const char* pName) {
-                return singletonHelper()
-                    ->device.getDispatcher()
-                    ->vkGetDeviceProcAddr(device, pName);
-            }
+            device.getDispatcher()
+                ->vkGetDeviceProcAddr,
     };
     VmaAllocatorCreateFlags flags =
         VMA_ALLOCATOR_CREATE_EXT_MEMORY_BUDGET_BIT;

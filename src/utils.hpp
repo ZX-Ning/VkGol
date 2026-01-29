@@ -6,9 +6,9 @@
 #include <cstdint>
 #include <filesystem>
 #include <fstream>
+#include <span>
 #include <type_traits>
 #include <vector>
-#include <span>
 
 constexpr bool IS_RELEASE =
 #ifdef NDEBUG
@@ -22,14 +22,14 @@ public:                                              \
     ClassName(const ClassName&) = delete;            \
     ClassName& operator=(const ClassName&) = delete;
 
-inline std::vector<char> readFile(const std::string& filePath) {
+inline std::vector<uint8_t> readFile(const std::string& filePath) {
     std::ifstream file(filePath, std::ios::binary);
     if (!file.is_open()) {
         throw std::runtime_error("failed to open file!");
     }
     size_t fileSize = std::filesystem::file_size(filePath);
-    std::vector<char> buffer(fileSize);
-    file.read(buffer.data(), fileSize);
+    std::vector<uint8_t> buffer(fileSize);
+    file.read(reinterpret_cast<char*>(buffer.data()), fileSize);
     file.close();
     return buffer;
 }
@@ -94,6 +94,11 @@ inline std::span<const uint8_t> asRawBytes(const std::vector<T>& vec) {
     const uint8_t* data = reinterpret_cast<const uint8_t*>(vec.data());
     size_t size = getVectorSize(vec);
     return {data, size};
+}
+
+template <class T>
+inline std::span<const uint8_t> objectAsRawBytes(const T& t) {
+    return {(const uint8_t*)(&t), sizeof(T)};
 }
 
 #endif  // UTILS_HPP
