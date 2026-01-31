@@ -31,7 +31,7 @@ public:
         const VulkanContext& context,
         const vk::ImageCreateInfo& info,
         vk::ImageViewCreateInfo viewInfo,
-        const vk::SamplerCreateInfo& samplerInfo
+        const vk::SamplerCreateInfo* samplerInfo
     );
     void load(std::span<const uint8_t> data, vk::raii::CommandBuffer& cmd);
     void deleteStagging();
@@ -58,5 +58,6 @@ public:
 };
 
 std::shared_ptr<Texture> createDefaultTexture(const VulkanContext& context, const vk::Extent3D& extent);
+std::unique_ptr<Texture> createDepthTexture(const VulkanContext& context, const vk::Extent3D& extent);
 
 #endif  // TEXTURE_HPP

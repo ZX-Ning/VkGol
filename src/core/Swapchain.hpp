@@ -6,12 +6,13 @@
 #include "../utils.hpp"
 
 class VulkanContext;
+class Texture;
 
 struct SurfaceImages {
     vk::Image image;
     vk::raii::ImageView imageView{nullptr};
-    // vk::raii::ImageView imageViewNorm;
     vk::raii::Semaphore renderComplete{nullptr};
+    std::unique_ptr<Texture> depthTexture;
 };
 
 struct SwapChain {

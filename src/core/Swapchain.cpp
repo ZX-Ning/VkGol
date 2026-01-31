@@ -4,6 +4,7 @@
 #include <vulkan/vulkan_raii.hpp>
 
 #include "VulkanContext.hpp"
+#include "Texture.hpp"
 
 namespace {
 vk::Extent2D chooseSwapExtent(
@@ -94,7 +95,8 @@ void SwapChain::init(const VulkanContext& context, Size2D<uint32_t> size) {
         this->images.emplace_back(
             std::move(image),
             vk::raii::ImageView{context.device, imageViewCreateInfo},
-            vk::raii::Semaphore{context.device, vk::SemaphoreCreateInfo{}}
+            vk::raii::Semaphore{context.device, vk::SemaphoreCreateInfo{}},
+            createDepthTexture(context, {size.width, size.height, 1})
         );
     }
 };

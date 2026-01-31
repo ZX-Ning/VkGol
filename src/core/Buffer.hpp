@@ -48,7 +48,7 @@ public:
         const VmaAllocator& allocator
     );
 
-    virtual void update(std::span<const uint8_t> data);
+    void update(std::span<const uint8_t> data);
 };
 
 class StaticBuffer : public LoadedBuffer {
@@ -62,7 +62,7 @@ public:
         const VmaAllocator& allocator
     );
     static void copyBuffer(vk::Buffer src, vk::Buffer dst, vk::raii::CommandBuffer& cmd, vk::DeviceSize size);
-    virtual void load(std::span<const uint8_t> data, vk::raii::CommandBuffer& cmd);
+    void load(std::span<const uint8_t> data, vk::raii::CommandBuffer& cmd);
     void deleteStagging();
 };
 

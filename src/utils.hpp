@@ -101,4 +101,12 @@ inline std::span<const uint8_t> objectAsRawBytes(const T& t) {
     return {(const uint8_t*)(&t), sizeof(T)};
 }
 
+inline float degreeToRadian(float degree) {
+    return degree * std::numbers::pi / 180.0;
+}
+
+inline float radianToDegree(float radian) {
+    return radian * 180.0 / std::numbers::pi;
+}
+
 #endif  // UTILS_HPP

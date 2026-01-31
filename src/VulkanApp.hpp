@@ -21,6 +21,7 @@
 #include "core/Model.hpp"
 #include "core/UniformData.hpp"
 #include "utils.hpp"
+#include "Object.hpp"
 
 // forward declaration
 class WindowApp;
@@ -38,6 +39,9 @@ public:
     };
     struct AppState {
         RGBAColor clearColor{0.45f, 0.53f, 0.65f, 1.f};
+        View view;
+        Camera camera;
+        std::unique_ptr<Object> obj;
         bool showDemoWindow = false;
         uint64_t lastRenderTimestamp;
         float frameTime;
@@ -50,8 +54,6 @@ private:
     std::vector<FrameData> frames;
 
     Model model;
-    View view;
-    Camera camera;
 
     DefaultScenceUBO ubo;
 

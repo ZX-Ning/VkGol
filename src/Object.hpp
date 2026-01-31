@@ -8,10 +8,10 @@ class Model;
 struct Object {
     Model& model;
     glm::fvec3 position;
-    glm::fvec3 scale;
+    glm::fvec3 scale {1.f,1.f,1.f};
     // rotation
     float angle;
-    glm::vec3 axis;
+    glm::vec3 axis{0.f, 1.f, 0.f};
 
     glm::fmat4x4 calcModelMatrix();
 };

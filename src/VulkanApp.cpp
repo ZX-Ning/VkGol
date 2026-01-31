@@ -3,7 +3,6 @@
 // std c++
 #include <cassert>
 #include <cstdint>
-#include <cstring>
 #include <memory>
 #include <stdexcept>
 #include <utility>
@@ -29,6 +28,7 @@
 #include "WindowApp.hpp"
 #include "core/RenderPipeline.hpp"
 #include "core/Swapchain.hpp"
+#include "core/Texture.hpp"
 #include "core/UniformData.hpp"
 #include "core/VulkanContext.hpp"
 #include "utils.hpp"
@@ -66,14 +66,35 @@ void drawImgui(vk::raii::CommandBuffer& buffer, VulkanApp::AppState& state) {
             "clear color",
             state.clearColor.getRaw()
         );
-        ImGui::SameLine();
-        ImGui::Checkbox("Demo Window", &state.showDemoWindow);
+        // ImGui::SameLine();
+        // ImGui::Checkbox("Demo Window", &state.showDemoWindow);
+        ImGui::DragFloat3(
+            "Eye",
+            reinterpret_cast<float*>(&state.view.eye),
+            0.01f,
+            -10.f,
+            10.f
+        );
+        ImGui::DragFloat3(
+            "LookAt",
+            reinterpret_cast<float*>(&state.view.target),
+            0.01f,
+            -10.f,
+            10.f
+        );
+        ImGui::DragFloat(
+            "Rotation",
+            reinterpret_cast<float*>(&state.obj->angle),
+            0.01f,
+            -std::numbers::pi,
+            std::numbers::pi
+        );
         ImGui::Text("Frame time: %.2fms", state.frameTime);
         ImGui::End();
     }
-    if (state.showDemoWindow) {
-        ImGui::ShowDemoWindow(&(state.showDemoWindow));
-    }
+    // if (state.showDemoWindow) {
+    //     ImGui::ShowDemoWindow(&(state.showDemoWindow));
+    // }
     ImGui::Render();
     ImDrawData* draw_data = ImGui::GetDrawData();
     ImGui_ImplVulkan_RenderDrawData(draw_data, *buffer);
@@ -88,13 +109,17 @@ void VulkanApp::init() {
     initFrames();
     initImgui();
     model = loadSimpleTraingleModel(*context);
+    state.obj.reset(new Object{
+        .model = model,
+        .position = {0.f, 0.f, 2.f}
+    });
     state.lastRenderTimestamp = getTimestampMs();
 }
 
 void VulkanApp::initImgui() {
     ImGuiIO* imguiIo = &ImGui::GetIO();
     imguiIo->ConfigFlags |= ImGuiConfigFlags_IsSRGB;
-    imguiIo->IniFilename = NULL;
+    // imguiIo->IniFilename = NULL;
 
     // font
     ImFontConfig fontcfg;
@@ -247,6 +272,7 @@ void VulkanApp::drawFrame() {
     uint64_t timeNow = getTimestampMs();
     state.frameTime = timeNow - state.lastRenderTimestamp;
     state.lastRenderTimestamp = timeNow;
+    state.camera.aspectRatio = 1.0 * size.width / size.height;
     // Note: inFlightFences, presentCompleteSemaphores, and commandBuffers
     // are indexed by frameIndex, while renderFinishedSemaphores is indexed by imageIndex
     auto& currentFrame = frames[frameIndex];
@@ -260,7 +286,10 @@ void VulkanApp::drawFrame() {
     context->device.resetFences(*currentFrame.fences);
 
     // update ubo
-    DefaultScenceUBO ubo{glm::fmat4(1), glm::fmat4(1)};
+    DefaultScenceUBO ubo{
+        glm::transpose(state.view.calcMat()),
+        glm::transpose(state.camera.clacMat())
+    };
     currentFrame.sceneUniformBuf->update(objectAsRawBytes(ubo));
 
     auto [result, imageIndex] = swapChain->swapChain.acquireNextImage(
@@ -283,6 +312,14 @@ void VulkanApp::drawFrame() {
     currentCmdBuffer.reset();
     auto width = static_cast<float>(swapChain->extent.width);
     auto height = static_cast<float>(swapChain->extent.height);
+    vk::Viewport viewport{
+        0.0f,
+        height,
+        width,
+        -height,
+        0.0f,
+        1.0f
+    };
 
     // record commandBuffer
     currentCmdBuffer.begin({});
@@ -306,21 +343,52 @@ void VulkanApp::drawFrame() {
                 .layerCount = 1
             }
         };
+        vk::ImageMemoryBarrier2 barrierDepth = {
+            .srcStageMask = vk::PipelineStageFlagBits2::eTopOfPipe,
+            .srcAccessMask = {},
+            .dstStageMask =
+                vk::PipelineStageFlagBits2::eEarlyFragmentTests |
+                vk::PipelineStageFlagBits2::eLateFragmentTests,
+            .dstAccessMask = vk::AccessFlagBits2::eDepthStencilAttachmentWrite,
+            .oldLayout = vk::ImageLayout::eUndefined,
+            .newLayout = vk::ImageLayout::eDepthStencilAttachmentOptimal,
+            .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+            .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+            .image = currentImage.depthTexture->image,
+            .subresourceRange = {
+                .aspectMask = vk::ImageAspectFlagBits::eDepth,
+                .baseMipLevel = 0,
+                .levelCount = 1,
+                .baseArrayLayer = 0,
+                .layerCount = 1
+            }
+        };
+        std::array barriers = {barrierTop, barrierDepth};
         currentCmdBuffer.pipelineBarrier2(
             vk::DependencyInfo{
                 .dependencyFlags = {},
-                .imageMemoryBarrierCount = 1,
-                .pImageMemoryBarriers = &barrierTop
+                .imageMemoryBarrierCount = barriers.size(),
+                .pImageMemoryBarriers = barriers.data()
             }
         );
-
         // Rendering:
-        vk::RenderingAttachmentInfo attachmentInfo = vk::RenderingAttachmentInfo{
+        vk::RenderingAttachmentInfo colorAttachmentInfo = vk::RenderingAttachmentInfo{
             .imageView = currentImage.imageView,
             .imageLayout = vk::ImageLayout::eColorAttachmentOptimal,
             .loadOp = vk::AttachmentLoadOp::eClear,
             .storeOp = vk::AttachmentStoreOp::eStore,
-            .clearValue = {state.clearColor.srgbToLinear()}
+            .clearValue = {
+                .color = {state.clearColor.srgbToLinear()}
+            }
+        };
+        vk::RenderingAttachmentInfo depthAttachmentInfo = {
+            .imageView = currentImage.depthTexture->view,
+            .imageLayout = vk::ImageLayout::eDepthAttachmentOptimal,
+            .loadOp = vk::AttachmentLoadOp::eClear,
+            .storeOp = vk::AttachmentStoreOp::eDontCare,
+            .clearValue = {
+                .depthStencil = vk::ClearDepthStencilValue(1.0f, 0)
+            }
         };
         {
             currentCmdBuffer.beginRendering(
@@ -331,20 +399,10 @@ void VulkanApp::drawFrame() {
                     },
                     .layerCount = 1,
                     .colorAttachmentCount = 1,
-                    .pColorAttachments = &attachmentInfo
+                    .pColorAttachments = &colorAttachmentInfo
                 }
             );
-            currentCmdBuffer.setViewport(
-                0,
-                vk::Viewport{
-                    0.0f,
-                    0.0f,
-                    width,
-                    height,
-                    0.0f,
-                    1.0f
-                }
-            );
+            currentCmdBuffer.setViewport(0, viewport);
             currentCmdBuffer.setScissor(
                 0, vk::Rect2D(vk::Offset2D(0, 0), swapChain->extent)
             );
@@ -357,7 +415,10 @@ void VulkanApp::drawFrame() {
             );
             model.bind(currentCmdBuffer);
             auto& layout = model.material.pipeline->layout;
-            vk::ArrayProxy<const DefaultPushConstant> constants{{glm::fmat4{1.f}}};
+            vk::ArrayProxy<const DefaultPushConstant> constants = {
+                {glm::transpose(state.obj->calcModelMatrix())}
+                // {glm::mat4(1.f)}
+            };
             currentCmdBuffer.pushConstants(
                 layout, vk::ShaderStageFlagBits::eAllGraphics, 0, constants
             );

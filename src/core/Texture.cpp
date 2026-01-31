@@ -9,10 +9,10 @@ Texture::Texture(
     const VulkanContext& context,
     const vk::ImageCreateInfo& info,
     vk::ImageViewCreateInfo viewInfo,
-    const vk::SamplerCreateInfo& samplerInfo
+    const vk::SamplerCreateInfo* samplerInfo
 ) : allocator(*context.allocator), format(info.format), extend(info.extent) {
     VmaAllocationCreateInfo allocInfo{
-        .usage = VMA_MEMORY_USAGE_AUTO_PREFER_HOST,
+        .usage = VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE,
         .requiredFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
     };
     VkImage image;
@@ -31,7 +31,9 @@ Texture::Texture(
     this->view = vk::raii::ImageView(context.device, viewInfo);
 
     // create sampler
-    this->sampler = vk::raii::Sampler(context.device, samplerInfo);
+    if (samplerInfo != nullptr) {
+        this->sampler = vk::raii::Sampler(context.device, *samplerInfo);
+    }
 };
 
 void Texture::load(std::span<const uint8_t> data, vk::raii::CommandBuffer& cmd) {
@@ -173,6 +175,40 @@ std::shared_ptr<Texture> createDefaultTexture(
         context,
         imageInfo,
         viewInfo,
-        samplerInfo
+        &samplerInfo
+    );
+}
+
+std::unique_ptr<Texture> createDepthTexture(const VulkanContext& context, const vk::Extent3D& extent) {
+    auto format = vk::Format::eD32Sfloat;
+    vk::ImageCreateInfo imageInfo{
+        .imageType = vk::ImageType::e2D,
+        .format = format,
+        .extent = extent,
+        .mipLevels = 1,
+        .arrayLayers = 1,
+        .samples = vk::SampleCountFlagBits::e1,
+        .tiling = vk::ImageTiling::eOptimal,
+        .usage = vk::ImageUsageFlagBits::eDepthStencilAttachment,
+        .sharingMode = vk::SharingMode::eExclusive
+    };
+
+    vk::ImageViewCreateInfo viewInfo{
+        .viewType = vk::ImageViewType::e2D,
+        .format = format,
+        .subresourceRange = {
+            vk::ImageAspectFlagBits::eDepth,
+            0,
+            1,
+            0,
+            1
+        }
+    };
+
+    return std::make_unique<Texture>(
+        context,
+        imageInfo,
+        viewInfo,
+        nullptr
     );
 }

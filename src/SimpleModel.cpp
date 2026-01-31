@@ -10,20 +10,75 @@
 #include "core/vertex.hpp"
 
 namespace {
-const std::vector<SimpleVertex> SQUARE_VERTICES = {
-    {{-0.5f, -0.5f, 0.0f}, {1.0f, 1.0f, 1.0f, 1.0f}, {0.0f, 0.0f}},  // bottom-left
-    {{0.5f, -0.5f, 0.0f}, {1.0f, 1.0f, 1.0f, 1.0f}, {1.0f, 0.0f}},   // bottom-right
-    {{0.5f, 0.5f, 0.0f}, {1.0f, 1.0f, 1.0f, 1.0f}, {1.0f, 1.0f}},    // top-right
-    {{-0.5f, 0.5f, 0.0f}, {1.0f, 1.0f, 1.0f, 1.0f}, {0.0f, 1.0f}},   // top-left
+
+// AI-Generagted Mesh Data
+// 24 Vertices (4 per face * 6 faces)
+// Positions assume a unit cube from -1.0 to 1.0
+// UVs map (0,0) Top-Left to (1,1) Bottom-Right
+const std::vector<SimpleVertex> CUBE_VERTICES = {
+    // Front Face (+Z)
+    // TL, BL, BR, TR
+    {{-1.0f, 1.0f, 1.0f}, glm::fvec4{1.0f}, {0.0f, 0.0f}},
+    {{-1.0f, -1.0f, 1.0f}, glm::fvec4{1.0f}, {0.0f, 1.0f}},
+    {{1.0f, -1.0f, 1.0f}, glm::fvec4{1.0f}, {1.0f, 1.0f}},
+    {{1.0f, 1.0f, 1.0f}, glm::fvec4{1.0f}, {1.0f, 0.0f}},
+
+    // Back Face (-Z)
+    // TL, BL, BR, TR (Relative to looking AT the face)
+    {{1.0f, 1.0f, -1.0f}, glm::fvec4{1.0f}, {0.0f, 0.0f}},
+    {{1.0f, -1.0f, -1.0f}, glm::fvec4{1.0f}, {0.0f, 1.0f}},
+    {{-1.0f, -1.0f, -1.0f}, glm::fvec4{1.0f}, {1.0f, 1.0f}},
+    {{-1.0f, 1.0f, -1.0f}, glm::fvec4{1.0f}, {1.0f, 0.0f}},
+
+    // Left Face (-X)
+    {{-1.0f, 1.0f, -1.0f}, glm::fvec4{1.0f}, {0.0f, 0.0f}},
+    {{-1.0f, -1.0f, -1.0f}, glm::fvec4{1.0f}, {0.0f, 1.0f}},
+    {{-1.0f, -1.0f, 1.0f}, glm::fvec4{1.0f}, {1.0f, 1.0f}},
+    {{-1.0f, 1.0f, 1.0f}, glm::fvec4{1.0f}, {1.0f, 0.0f}},
+
+    // Right Face (+X)
+    {{1.0f, 1.0f, 1.0f}, glm::fvec4{1.0f}, {0.0f, 0.0f}},
+    {{1.0f, -1.0f, 1.0f}, glm::fvec4{1.0f}, {0.0f, 1.0f}},
+    {{1.0f, -1.0f, -1.0f}, glm::fvec4{1.0f}, {1.0f, 1.0f}},
+    {{1.0f, 1.0f, -1.0f}, glm::fvec4{1.0f}, {1.0f, 0.0f}},
+
+    // Top Face (+Y)
+    {{-1.0f, 1.0f, -1.0f}, glm::fvec4{1.0f}, {0.0f, 0.0f}},
+    {{-1.0f, 1.0f, 1.0f}, glm::fvec4{1.0f}, {0.0f, 1.0f}},
+    {{1.0f, 1.0f, 1.0f}, glm::fvec4{1.0f}, {1.0f, 1.0f}},
+    {{1.0f, 1.0f, -1.0f}, glm::fvec4{1.0f}, {1.0f, 0.0f}},
+
+    // Bottom Face (-Y)
+    {{-1.0f, -1.0f, 1.0f}, glm::fvec4{1.0f}, {0.0f, 0.0f}},
+    {{-1.0f, -1.0f, -1.0f}, glm::fvec4{1.0f}, {0.0f, 1.0f}},
+    {{1.0f, -1.0f, -1.0f}, glm::fvec4{1.0f}, {1.0f, 1.0f}},
+    {{1.0f, -1.0f, 1.0f}, glm::fvec4{1.0f}, {1.0f, 0.0f}}
 };
 
-const std::vector<uint32_t> SQUARE_INCICES = {
-    0,
-    1,
-    2,
-    2,
-    3,
-    0,
+// 12 Triangles (2 per face)
+// Winding order: CCW
+struct index {
+    uint32_t x, y, z;
+};
+const std::vector<index> CUBE_INDICES = {
+    // Front
+    {0, 1, 2},
+    {0, 2, 3},
+    // Back
+    {4, 5, 6},
+    {4, 6, 7},
+    // Left
+    {8, 9, 10},
+    {8, 10, 11},
+    // Right
+    {12, 13, 14},
+    {12, 14, 15},
+    // Top
+    {16, 17, 18},
+    {16, 18, 19},
+    // Bottom
+    {20, 21, 22},
+    {20, 22, 23}
 };
 
 Mesh createMesh(VulkanContext& context) {
@@ -31,18 +86,18 @@ Mesh createMesh(VulkanContext& context) {
     auto vertBuf = BufferFactory::createStaticBuffer(
         BufferFactory::Type::Vertex,
         *context.allocator,
-        getVectorSize(SQUARE_VERTICES)
+        getVectorSize(CUBE_VERTICES)
     );
     auto indexBuf = BufferFactory::createStaticBuffer(
         BufferFactory::Type::Index,
         *context.allocator,
-        getVectorSize(SQUARE_INCICES)
+        getVectorSize(CUBE_INDICES)
     );
 
     return {
         std::move(vertBuf),
         std::move(indexBuf),
-        static_cast<uint32_t>(SQUARE_INCICES.size())
+        static_cast<uint32_t>(CUBE_INDICES.size() * 3)
     };
 }
 
@@ -128,8 +183,8 @@ Model loadSimpleTraingleModel(VulkanContext& context) {
         }
     );
     {
-        mesh.vertexBuffer->load(asRawBytes(SQUARE_VERTICES), cmd);
-        mesh.indexBuffer->load(asRawBytes(SQUARE_INCICES), cmd);
+        mesh.vertexBuffer->load(asRawBytes(CUBE_VERTICES), cmd);
+        mesh.indexBuffer->load(asRawBytes(CUBE_INDICES), cmd);
         material.texture->load(loadedImg.rawData(), cmd);
         cmd.end();
     }
