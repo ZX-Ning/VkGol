@@ -1,4 +1,6 @@
 add_rules("mode.debug", "mode.release")
+set_policy("build.warning", true)
+set_warnings("all", "extra")
 
 if (is_plat("linux")) then
     add_requires("glfw", {configs = {wayland = true}})

@@ -24,7 +24,9 @@ struct Uniform {
 
 ConstantBuffer<Uniform> ubo : register(b0, space0);
 
+[[vk::combinedImageSampler]]
 Texture2D texture : register(t0, space1);
+[[vk::combinedImageSampler]]
 SamplerState texSampler : register(s0, space1);
 
 [shader("vertex")]
@@ -42,3 +44,4 @@ float4 fragMain(VertexOutput fIn) : SV_Target {
     return texture.Sample(texSampler, fIn.uv);
     // return float4(1.f, 0.f, 0.f, 0.5f);
 }
+

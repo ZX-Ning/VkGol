@@ -57,10 +57,10 @@ void drawImgui(vk::raii::CommandBuffer& buffer, VulkanApp::AppState& state) {
     ImGui_ImplVulkan_NewFrame();
     ImGui::NewFrame();
     {
-        auto imguiScale = ImGui::GetIO().DisplayFramebufferScale;
-        auto size = ImGui::GetMainViewport()->Size;
+        // auto imguiScale = ImGui::GetIO().DisplayFramebufferScale;
+        // auto size = ImGui::GetMainViewport()->Size;
         // std::println("Imgui scale: {}x{}", imguiScale.x, imguiScale.y);
-        ImGui::SetNextWindowSize(ImVec2(size.x * 0.75, size.y * 0.15), ImGuiCond_Appearing);
+        // ImGui::SetNextWindowSize(ImVec2(size.x * 0.75, size.y * 0.15), ImGuiCond_Appearing);
         ImGui::Begin("Hello, world!");
         ImGui::ColorEdit3(
             "clear color",
@@ -151,6 +151,7 @@ void VulkanApp::initImgui() {
     vk::PipelineRenderingCreateInfoKHR pipelineInfo{
         .colorAttachmentCount = 1,
         .pColorAttachmentFormats = &swapChain->surfaceFormat.format,
+        .depthAttachmentFormat = vk::Format::eD32Sfloat
     };
 
     auto vert = readFile("shaders/imgui/vert.spv");
@@ -399,7 +400,8 @@ void VulkanApp::drawFrame() {
                     },
                     .layerCount = 1,
                     .colorAttachmentCount = 1,
-                    .pColorAttachments = &colorAttachmentInfo
+                    .pColorAttachments = &colorAttachmentInfo,
+                    .pDepthAttachment = &depthAttachmentInfo
                 }
             );
             currentCmdBuffer.setViewport(0, viewport);
@@ -415,12 +417,12 @@ void VulkanApp::drawFrame() {
             );
             model.bind(currentCmdBuffer);
             auto& layout = model.material.pipeline->layout;
-            vk::ArrayProxy<const DefaultPushConstant> constants = {
-                {glm::transpose(state.obj->calcModelMatrix())}
-                // {glm::mat4(1.f)}
-            };
+            DefaultPushConstant pc{glm::transpose(state.obj->calcModelMatrix())};
             currentCmdBuffer.pushConstants(
-                layout, vk::ShaderStageFlagBits::eAllGraphics, 0, constants
+                layout,
+                vk::ShaderStageFlagBits::eAllGraphics,
+                0,
+                vk::ArrayProxy<const DefaultPushConstant>{1, &pc}
             );
             model.render(currentCmdBuffer);
 

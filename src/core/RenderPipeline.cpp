@@ -134,7 +134,8 @@ std::shared_ptr<Pipeline> createDefaultGraphicsPipeline(
         },
         vk::PipelineRenderingCreateInfo{
             .colorAttachmentCount = 1,
-            .pColorAttachmentFormats = &context.surfaceForamt.format
+            .pColorAttachmentFormats = &context.surfaceForamt.format,
+            .depthAttachmentFormat = vk::Format::eD32Sfloat
         }
     };
     result->pipeline = vk::raii::Pipeline{
