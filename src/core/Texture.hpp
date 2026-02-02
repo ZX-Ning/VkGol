@@ -9,10 +9,10 @@
 
 #include "Buffer.hpp"
 
-class VulkanContext;
-class Image;
+struct VulkanContext;
+struct Image;
 
-class Texture {
+struct Texture {
 public:
     vk::Image image;
     vk::raii::ImageView view{nullptr};

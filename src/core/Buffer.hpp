@@ -17,7 +17,7 @@
 
 #include "../utils.hpp"
 
-class LoadedBuffer {
+struct LoadedBuffer {
 protected:
     vk::Buffer buffer;
     VmaAllocation allocation;
@@ -40,7 +40,7 @@ public:
     LoadedBuffer& operator=(LoadedBuffer&&) = delete;
 };
 
-class DynamicBuffer : public LoadedBuffer {
+struct DynamicBuffer : public LoadedBuffer {
 public:
     DynamicBuffer(
         const vk::BufferCreateInfo& info,
@@ -51,7 +51,7 @@ public:
     void update(std::span<const uint8_t> data);
 };
 
-class StaticBuffer : public LoadedBuffer {
+struct StaticBuffer : public LoadedBuffer {
 private:
     std::unique_ptr<DynamicBuffer> stagging;
 

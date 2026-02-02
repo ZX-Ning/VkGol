@@ -24,11 +24,11 @@
 #include "Object.hpp"
 
 // forward declaration
-class WindowApp;
-class VulkanContext;
-class SwapChain;
+struct WindowApp;
+struct VulkanContext;
+struct SwapChain;
 ////////////////////////
-class VulkanApp {
+struct VulkanApp {
 public:
     struct FrameData {
         vk::raii::CommandBuffer cmdBuffer{nullptr};

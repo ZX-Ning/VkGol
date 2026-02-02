@@ -7,9 +7,9 @@
 
 #include "Buffer.hpp"
 
-class Pipeline;
-class VulkanContext;
-class Texture;
+struct Pipeline;
+struct VulkanContext;
+struct Texture;
 
 struct Mesh {
     std::shared_ptr<StaticBuffer> vertexBuffer;

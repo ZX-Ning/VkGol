@@ -3,7 +3,7 @@
 
 #include <glm/glm.hpp>
 
-class Model;
+struct Model;
 
 struct Object {
     Model& model;

@@ -6,7 +6,7 @@
 #include <vulkan/vulkan_raii.hpp>
 // #include "VulkanContext.hpp"
 
-class VulkanContext;
+struct VulkanContext;
 
 struct Pipeline {
     vk::raii::Pipeline pipeline{nullptr};

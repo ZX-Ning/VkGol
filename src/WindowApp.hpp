@@ -9,7 +9,7 @@
 #include "utils.hpp"
 
 // forward declarations
-class GLFWwindow;
+struct GLFWwindow;
 namespace vk::raii {
 class SurfaceKHR;
 class Instance;
@@ -26,7 +26,7 @@ struct WindowDeleter {
 };
 using GLFWwindowWrapper = std::unique_ptr<GLFWwindow, WindowDeleter>;
 
-class WindowApp {
+struct WindowApp {
 private:
     // unique_ptr makes WindowApp moveable but not copyable
     GLFWwindowWrapper window;

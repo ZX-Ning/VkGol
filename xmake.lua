@@ -5,10 +5,10 @@ set_warnings("all", "extra")
 if (is_plat("linux")) then
     add_requires("glfw", {configs = {wayland = true}})
 else
-    add_requires("glfw", {system = false})
+    add_requires("glfw")
 end
 
-add_requires("glm", "vulkan-hpp", "vulkan-memory-allocator", {system = false})
+add_requires("glm", "vulkan-hpp", "vulkan-memory-allocator")
 
 includes("third_party/")
 
@@ -18,9 +18,14 @@ target("learn_vulkan", function()
     add_files("src/**.cpp")
     add_packages("glfw", "glm", "vulkan-hpp", "vulkan-memory-allocator")
     add_deps("imgui_vulkan_glfw", "stb")
+
     add_defines("GLFW_INCLUDE_VULKAN")
     add_defines("VK_NO_PROTOTYPES")
     add_defines("VULKAN_HPP_NO_CONSTRUCTORS")
     add_defines("VULKAN_HPP_DISPATCH_LOADER_DYNAMIC=1")
-    add_defines("VMA_STATIC_VULKAN_FUNCTIONS=0","VMA_DYNAMIC_VULKAN_FUNCTIONS=1")
+    add_defines("VMA_STATIC_VULKAN_FUNCTIONS=0",
+                "VMA_DYNAMIC_VULKAN_FUNCTIONS=1")
+    on_load(function(target)
+        if (is_plat("mingw")) then target:add("links", "stdc++exp") end
+    end)
 end)

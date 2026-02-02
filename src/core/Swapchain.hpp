@@ -5,8 +5,8 @@
 
 #include "../utils.hpp"
 
-class VulkanContext;
-class Texture;
+struct VulkanContext;
+struct Texture;
 
 struct SurfaceImages {
     vk::Image image;

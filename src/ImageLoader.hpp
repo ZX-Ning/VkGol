@@ -7,7 +7,7 @@
 #include <memory>
 #include <span>
 
-class Image {
+struct Image {
 private:
     struct StbImageDeleter {
         void operator()(uint8_t* data) const noexcept {

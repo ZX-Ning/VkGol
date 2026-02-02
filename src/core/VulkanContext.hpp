@@ -7,7 +7,7 @@
 #include "../utils.hpp"
 #include "VulkanUtils.hpp"
 
-class WindowApp;
+struct WindowApp;
 
 struct VulkanContext {
     vk::raii::Context context;
