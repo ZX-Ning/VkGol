@@ -2,7 +2,7 @@
 
 #include "RenderPipeline.hpp"
 
-void Model::bind(vk::raii::CommandBuffer& cmd) {
+void Model::bind(const vk::raii::PipelineLayout& layout,vk::raii::CommandBuffer& cmd) {
     Pipeline& pipeline = *material.pipeline;
     cmd.bindPipeline(
         vk::PipelineBindPoint::eGraphics,
@@ -11,7 +11,7 @@ void Model::bind(vk::raii::CommandBuffer& cmd) {
     if (material.descriptorSet != nullptr) {
         cmd.bindDescriptorSets(
             vk::PipelineBindPoint::eGraphics,
-            pipeline.layout,
+            layout,
             1,
             **material.descriptorSet,
             nullptr

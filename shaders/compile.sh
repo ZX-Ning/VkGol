@@ -1,2 +1,2 @@
 #!/usr/bin/sh
-dxc  shader.hlsl -T lib_6_7  -spirv -Fo shader.spv -O3
+slangc shader.slang -profile spirv_1_3 -matrix-layout-row-major -o shader.spv -O3 

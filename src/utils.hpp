@@ -6,10 +6,11 @@
 #include <cstdint>
 #include <filesystem>
 #include <fstream>
+#include <numbers>
+#include <optional>
 #include <span>
 #include <type_traits>
 #include <vector>
-#include <numbers>
 
 constexpr bool IS_RELEASE =
 #ifdef NDEBUG
@@ -22,6 +23,12 @@ constexpr bool IS_RELEASE =
 public:                                              \
     ClassName(const ClassName&) = delete;            \
     ClassName& operator=(const ClassName&) = delete;
+
+template <typename T>
+using Ref = std::reference_wrapper<T>;
+
+template <typename T>
+using OptRef = std::optional<Ref<T>>;
 
 inline std::vector<uint8_t> readFile(const std::string& filePath) {
     std::ifstream file(filePath, std::ios::binary);
@@ -86,19 +93,19 @@ inline uint64_t getTimestampMs() {
 }
 
 template <class T>
-inline size_t getVectorSize(const std::vector<T>& vec) {
+size_t getVectorSize(const std::vector<T>& vec) {
     return vec.size() * sizeof(T);
 }
 
 template <class T>
-inline std::span<const uint8_t> asRawBytes(const std::vector<T>& vec) {
+std::span<const uint8_t> asRawBytes(const std::vector<T>& vec) {
     const uint8_t* data = reinterpret_cast<const uint8_t*>(vec.data());
     size_t size = getVectorSize(vec);
     return {data, size};
 }
 
 template <class T>
-inline std::span<const uint8_t> objectAsRawBytes(const T& t) {
+std::span<const uint8_t> objectAsRawBytes(const T& t) {
     return {(const uint8_t*)(&t), sizeof(T)};
 }
 

@@ -5,7 +5,10 @@
 
 #include <cassert>
 #include <print>
+#include <ranges>
 #include <stdexcept>
+
+// vulkan
 #include <vulkan/vulkan_raii.hpp>
 #include <vulkan/vulkan_structs.hpp>
 
@@ -117,7 +120,6 @@ vk::raii::Instance createInstance(const vk::raii::Context& context) {
             }
         }
 
-        int width, height;
         if (!extensionFound) {
             throw std::runtime_error(
                 std::format("Required extension not supported: {}", requiredExtension)
@@ -254,6 +256,54 @@ vk::raii::DescriptorPool createDescriptorPool(
 
 }  // namespace
 
+std::unique_ptr<Layouts> Layouts::createDefaultLayout(const VulkanContext& context) {
+    vk::PushConstantRange range[]{
+        vk::PushConstantRange{
+            .stageFlags = vk::ShaderStageFlagBits::eAllGraphics,
+            .offset = 0,
+            .size = sizeof(DefaultPushConstant),
+        }
+    };
+    std::vector<vk::raii::DescriptorSetLayout> setLayouts;
+    setLayouts.push_back(
+        vk::raii::DescriptorSetLayout(
+            context.device,
+            vk::DescriptorSetLayoutCreateInfo{
+                .bindingCount = 1,
+                .pBindings = DefaultScenceUBO::descriptorSetLayoutBindings().data()
+            }
+        )
+    );
+    setLayouts.push_back(
+        vk::raii::DescriptorSetLayout(
+            context.device,
+            vk::DescriptorSetLayoutCreateInfo{
+                .bindingCount = 1,
+                .pBindings = Texture::descriptorSetLayoutBindings().data()
+            }
+        )
+    );
+
+    std::vector<vk::DescriptorSetLayout> layoutHandlers =
+        setLayouts |
+        std::ranges::views::transform(
+            [](vk::raii::DescriptorSetLayout& e) {
+                return *e;
+            }
+        ) |
+        std::ranges::to<std::vector<vk::DescriptorSetLayout>>();
+
+    vk::PipelineLayoutCreateInfo pipelineLayoutInfo{
+        .setLayoutCount = static_cast<uint32_t>(layoutHandlers.size()),
+        .pSetLayouts = layoutHandlers.data(),
+        .pushConstantRangeCount = 1,
+        .pPushConstantRanges = range,
+    };
+    vk::raii::PipelineLayout PipelineLayout(context.device, pipelineLayoutInfo);
+
+    return std::make_unique<Layouts>(std::move(PipelineLayout), std::move(setLayouts));
+}
+
 VulkanContext::VulkanContext(WindowApp& windowApp) {
     std::println("Starting Vulkan instance.");
 
@@ -279,13 +329,8 @@ VulkanContext::VulkanContext(WindowApp& windowApp) {
     this->surfaceForamt = chooseSwapSurfaceFormat(
         physicalDevice.getSurfaceFormatsKHR(surface)
     );
+    this->defaultLayouts = Layouts::createDefaultLayout(*this);
     this->descriptorPool = createDescriptorPool(device);
-    this->set0Layout = vk::raii::DescriptorSetLayout(
-        device, {.bindingCount = 1, .pBindings = DefaultScenceUBO::descriptorSetLayoutBindings().data()}
-    );
-    this->set1Layout = vk::raii::DescriptorSetLayout(
-        device, {.bindingCount = 1, .pBindings = Texture::descriptorSetLayoutBindings().data()}
-    );
 }
 
 VulkanContext::~VulkanContext() {
@@ -307,7 +352,7 @@ void VulkanContext::initLogicalDevice() {
             break;
         }
     }
-    if (queueIndex == ~0) {
+    if (queueIndex == (uint32_t)~0) {
         throw std::runtime_error(
             "Could not find a queue for graphics and present -> "
             "terminating"

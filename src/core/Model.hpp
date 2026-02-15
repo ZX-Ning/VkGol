@@ -26,7 +26,7 @@ struct Material {
 struct Model {
     Mesh mesh;
     Material material;
-    void bind(vk::raii::CommandBuffer&);
+    void bind(const vk::raii::PipelineLayout&, vk::raii::CommandBuffer&);
     void render(vk::raii::CommandBuffer&);
 };
 

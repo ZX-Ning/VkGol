@@ -25,6 +25,7 @@ target("learn_vulkan", function()
     add_defines("VULKAN_HPP_DISPATCH_LOADER_DYNAMIC=1")
     add_defines("VMA_STATIC_VULKAN_FUNCTIONS=0",
                 "VMA_DYNAMIC_VULKAN_FUNCTIONS=1")
+    add_defines("GLM_FORCE_DEPTH_ZERO_TO_ONE")
     on_load(function(target)
         if (is_plat("mingw")) then target:add("links", "stdc++exp") end
     end)

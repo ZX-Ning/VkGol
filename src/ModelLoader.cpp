@@ -1,4 +1,4 @@
-#include "SimpleModel.hpp"
+#include "ModelLoader.hpp"
 
 #include <vector>
 #include <vulkan/vulkan.hpp>
@@ -8,79 +8,10 @@
 #include "core/RenderPipeline.hpp"
 #include "core/Texture.hpp"
 #include "core/vertex.hpp"
+#include "Consts.hpp"
+#include "CubeMesh.hpp"
 
 namespace {
-
-// AI-Generagted Mesh Data
-// 24 Vertices (4 per face * 6 faces)
-// Positions assume a unit cube from -1.0 to 1.0
-// UVs map (0,0) Top-Left to (1,1) Bottom-Right
-const std::vector<SimpleVertex> CUBE_VERTICES = {
-    // Front Face (+Z)
-    // TL, BL, BR, TR
-    {{-1.0f, 1.0f, 1.0f}, glm::fvec4{1.0f}, {0.0f, 0.0f}},
-    {{-1.0f, -1.0f, 1.0f}, glm::fvec4{1.0f}, {0.0f, 1.0f}},
-    {{1.0f, -1.0f, 1.0f}, glm::fvec4{1.0f}, {1.0f, 1.0f}},
-    {{1.0f, 1.0f, 1.0f}, glm::fvec4{1.0f}, {1.0f, 0.0f}},
-
-    // Back Face (-Z)
-    // TL, BL, BR, TR (Relative to looking AT the face)
-    {{1.0f, 1.0f, -1.0f}, glm::fvec4{1.0f}, {0.0f, 0.0f}},
-    {{1.0f, -1.0f, -1.0f}, glm::fvec4{1.0f}, {0.0f, 1.0f}},
-    {{-1.0f, -1.0f, -1.0f}, glm::fvec4{1.0f}, {1.0f, 1.0f}},
-    {{-1.0f, 1.0f, -1.0f}, glm::fvec4{1.0f}, {1.0f, 0.0f}},
-
-    // Left Face (-X)
-    {{-1.0f, 1.0f, -1.0f}, glm::fvec4{1.0f}, {0.0f, 0.0f}},
-    {{-1.0f, -1.0f, -1.0f}, glm::fvec4{1.0f}, {0.0f, 1.0f}},
-    {{-1.0f, -1.0f, 1.0f}, glm::fvec4{1.0f}, {1.0f, 1.0f}},
-    {{-1.0f, 1.0f, 1.0f}, glm::fvec4{1.0f}, {1.0f, 0.0f}},
-
-    // Right Face (+X)
-    {{1.0f, 1.0f, 1.0f}, glm::fvec4{1.0f}, {0.0f, 0.0f}},
-    {{1.0f, -1.0f, 1.0f}, glm::fvec4{1.0f}, {0.0f, 1.0f}},
-    {{1.0f, -1.0f, -1.0f}, glm::fvec4{1.0f}, {1.0f, 1.0f}},
-    {{1.0f, 1.0f, -1.0f}, glm::fvec4{1.0f}, {1.0f, 0.0f}},
-
-    // Top Face (+Y)
-    {{-1.0f, 1.0f, -1.0f}, glm::fvec4{1.0f}, {0.0f, 0.0f}},
-    {{-1.0f, 1.0f, 1.0f}, glm::fvec4{1.0f}, {0.0f, 1.0f}},
-    {{1.0f, 1.0f, 1.0f}, glm::fvec4{1.0f}, {1.0f, 1.0f}},
-    {{1.0f, 1.0f, -1.0f}, glm::fvec4{1.0f}, {1.0f, 0.0f}},
-
-    // Bottom Face (-Y)
-    {{-1.0f, -1.0f, 1.0f}, glm::fvec4{1.0f}, {0.0f, 0.0f}},
-    {{-1.0f, -1.0f, -1.0f}, glm::fvec4{1.0f}, {0.0f, 1.0f}},
-    {{1.0f, -1.0f, -1.0f}, glm::fvec4{1.0f}, {1.0f, 1.0f}},
-    {{1.0f, -1.0f, 1.0f}, glm::fvec4{1.0f}, {1.0f, 0.0f}}
-};
-
-// 12 Triangles (2 per face)
-// Winding order: CCW
-struct index {
-    uint32_t x, y, z;
-};
-const std::vector<index> CUBE_INDICES = {
-    // Front
-    {0, 1, 2},
-    {0, 2, 3},
-    // Back
-    {4, 5, 6},
-    {4, 6, 7},
-    // Left
-    {8, 9, 10},
-    {8, 10, 11},
-    // Right
-    {12, 13, 14},
-    {12, 14, 15},
-    // Top
-    {16, 17, 18},
-    {16, 18, 19},
-    // Bottom
-    {20, 21, 22},
-    {20, 22, 23}
-};
-
 Mesh createMesh(VulkanContext& context) {
     // create buffers
     auto vertBuf = BufferFactory::createStaticBuffer(
@@ -103,7 +34,7 @@ Mesh createMesh(VulkanContext& context) {
 
 Material createMaterial(VulkanContext& context, Image& img) {
     // create render pipeline
-    auto shader = readFile("shaders/shader.spv");
+    auto shader = readFile(Consts::SHADER_SPV_PATH);
     vk::VertexInputBindingDescription bindingDescs[] = {
         SimpleVertex::bindingDescription()
     };
@@ -134,7 +65,7 @@ Material createMaterial(VulkanContext& context, Image& img) {
     vk::DescriptorSetAllocateInfo allocInfo{
         .descriptorPool = context.descriptorPool,
         .descriptorSetCount = 1,
-        .pSetLayouts = &*context.set1Layout
+        .pSetLayouts = &*(context.defaultLayouts->setLayouts[1])
     };
     auto sets =
         context.device.allocateDescriptorSets(allocInfo);
@@ -168,8 +99,8 @@ Material createMaterial(VulkanContext& context, Image& img) {
 
 }  // namespace
 
-Model loadSimpleTraingleModel(VulkanContext& context) {
-    auto imgFile = readFile("assets/textures/dog.png");
+Model ModelLoader::loadSimpleTraingleModel(VulkanContext& context) {
+    auto imgFile = readFile(Consts::DOG_TEXTURE_PATH);
     auto loadedImg = Image::readImage(imgFile);
 
     Mesh mesh = createMesh(context);

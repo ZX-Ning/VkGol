@@ -11,7 +11,9 @@ struct Image {
 private:
     struct StbImageDeleter {
         void operator()(uint8_t* data) const noexcept {
-            stbi_image_free(data);
+            if (data) {
+                stbi_image_free(data);
+            }
         }
     };
     typedef std::unique_ptr<uint8_t, StbImageDeleter> ImageDataWrapper;

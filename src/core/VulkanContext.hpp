@@ -8,6 +8,13 @@
 #include "VulkanUtils.hpp"
 
 struct WindowApp;
+struct VulkanContext;
+
+struct Layouts {
+    vk::raii::PipelineLayout pipelineLayout{nullptr};
+    std::vector<vk::raii::DescriptorSetLayout> setLayouts;
+    static std::unique_ptr<Layouts> createDefaultLayout(const VulkanContext& context);
+};
 
 struct VulkanContext {
     vk::raii::Context context;
@@ -19,10 +26,10 @@ struct VulkanContext {
     vk::raii::Queue queue{nullptr};
     vk::raii::CommandPool commandPool{nullptr};
     uint32_t queueFamilyIndex = ~0;
+    std::unique_ptr<Layouts> defaultLayouts;
     vk::raii::CommandBuffer loadingCmdBuffer{nullptr};
     vk::raii::DescriptorPool descriptorPool{nullptr};
-    vk::raii::DescriptorSetLayout set0Layout{nullptr};
-    vk::raii::DescriptorSetLayout set1Layout{nullptr};
+
     VmaAllocatorWrapper allocator;
     vk::SurfaceFormatKHR surfaceForamt;
     void initLogicalDevice();

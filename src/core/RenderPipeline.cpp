@@ -1,5 +1,6 @@
 #include "RenderPipeline.hpp"
 
+#include <ranges>
 #include <vulkan/vulkan_raii.hpp>
 
 #include "Texture.hpp"
@@ -19,6 +20,7 @@ vk::raii::ShaderModule createShaderModule(
 
     return shaderModule;
 }
+
 }  // namespace
 
 std::shared_ptr<Pipeline> createDefaultGraphicsPipeline(
@@ -89,34 +91,12 @@ std::shared_ptr<Pipeline> createDefaultGraphicsPipeline(
         .depthBoundsTestEnable = vk::False,
         .stencilTestEnable = vk::False
     };
-    
+
     std::vector dynamicStates = {vk::DynamicState::eViewport, vk::DynamicState::eScissor};
     vk::PipelineDynamicStateCreateInfo dynamicState{
         .dynamicStateCount = static_cast<uint32_t>(dynamicStates.size()),
         .pDynamicStates = dynamicStates.data()
     };
-
-    vk::PushConstantRange range[]{
-        vk::PushConstantRange{
-            .stageFlags = vk::ShaderStageFlagBits::eAllGraphics,
-            .offset = 0,
-            .size = sizeof(DefaultPushConstant),
-        }
-    };
-    std::vector<vk::DescriptorSetLayout> layoutHandlers{
-        *context.set0Layout,
-        *context.set1Layout
-    };
-    vk::PipelineLayoutCreateInfo pipelineLayoutInfo{
-        .setLayoutCount = static_cast<uint32_t>(layoutHandlers.size()),
-        .pSetLayouts = layoutHandlers.data(),
-        .pushConstantRangeCount = 1,
-        .pPushConstantRanges = range,
-    };
-    auto result = std::make_shared<Pipeline>();
-    result->layout =
-        vk::raii::PipelineLayout(context.device, pipelineLayoutInfo);
-
     vk::StructureChain pipelineCreateInfoChain{
         vk::GraphicsPipelineCreateInfo{
             .stageCount = 2,
@@ -129,7 +109,7 @@ std::shared_ptr<Pipeline> createDefaultGraphicsPipeline(
             .pDepthStencilState = &depthStencil,
             .pColorBlendState = &colorBlending,
             .pDynamicState = &dynamicState,
-            .layout = result->layout,
+            .layout = context.defaultLayouts->pipelineLayout,
             .renderPass = nullptr,
         },
         vk::PipelineRenderingCreateInfo{
@@ -138,10 +118,9 @@ std::shared_ptr<Pipeline> createDefaultGraphicsPipeline(
             .depthAttachmentFormat = vk::Format::eD32Sfloat
         }
     };
-    result->pipeline = vk::raii::Pipeline{
+    return std::make_unique<Pipeline>(vk::raii::Pipeline{
         context.device,
         nullptr,
         pipelineCreateInfoChain.get<vk::GraphicsPipelineCreateInfo>()
-    };
-    return result;
+    });
 }

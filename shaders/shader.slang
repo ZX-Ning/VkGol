@@ -1,20 +1,20 @@
 struct VertexInput {
-    float3 pos : POSITION;
-    float4 color : COLOR;
-    float2 uv : TEXCOORD;
+    float3 pos;
+    float4 color;
+    float2 uv;
 };
 
 struct VertexOutput {
     float4 pos : SV_Position;
-    float4 color : COLOR;
-    float2 uv : TEXCOORD;
+    float4 color;
+    float2 uv;
 };
 
 struct PC {
     row_major float4x4 model;
 };
 
-[[vk::push_constant()]]
+[[vk_push_constant]]
 ConstantBuffer<PC> pc;
 
 struct Uniform {
@@ -22,12 +22,11 @@ struct Uniform {
     row_major float4x4 projection;
 };
 
-ConstantBuffer<Uniform> ubo : register(b0, space0);
+[[vk_binding(0, 0)]]
+ConstantBuffer<Uniform> ubo;
 
-[[vk::combinedImageSampler]]
-Texture2D texture : register(t0, space1);
-[[vk::combinedImageSampler]]
-SamplerState texSampler : register(s0, space1);
+[[vk_binding(0, 1)]]
+Sampler2D sampledTexture;
 
 [shader("vertex")]
 VertexOutput vertMain(VertexInput vIn) {
@@ -39,9 +38,10 @@ VertexOutput vertMain(VertexInput vIn) {
     return vOut;
 }
 
-[shader("pixel")]
+[shader("fragment")]
 float4 fragMain(VertexOutput fIn) : SV_Target {
-    return texture.Sample(texSampler, fIn.uv);
+    return sampledTexture.Sample(fIn.uv);
     // return float4(1.f, 0.f, 0.f, 0.5f);
 }
+
 

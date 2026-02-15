@@ -10,9 +10,7 @@ struct VulkanContext;
 
 struct Pipeline {
     vk::raii::Pipeline pipeline{nullptr};
-    vk::raii::PipelineLayout layout{nullptr};
 };
-
 
 std::shared_ptr<Pipeline> createDefaultGraphicsPipeline(
     const VulkanContext& context,
