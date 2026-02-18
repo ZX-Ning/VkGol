@@ -20,12 +20,8 @@
 #include <vulkan/vulkan_structs.hpp>
 #include <vulkan/vulkan_to_string.hpp>
 
-// imgui
-#include <backends/imgui_impl_glfw.h>
-#include <backends/imgui_impl_vulkan.h>
-#include <imgui.h>
-
 // project
+#include "ImguiApp.hpp"
 #include "ModelLoader.hpp"
 #include "Scene.hpp"
 #include "WindowApp.hpp"
@@ -34,7 +30,6 @@
 #include "core/Texture.hpp"
 #include "core/UniformData.hpp"
 #include "core/VulkanContext.hpp"
-#include "imgui.hpp"
 #include "utils.hpp"
 
 namespace {
@@ -44,12 +39,6 @@ constexpr int MAX_FRAMES_IN_FLIGHT = 2;
 
 void RenderApp::init() {
     initFrames();
-    Imgui::initImguiForVk(
-        windowApp,
-        context,
-        swapChain.surfaceFormat.format,
-        swapChain.minImageCount
-    );
     state.lastRenderTimestamp = getTimestampMs();
 }
 
@@ -117,17 +106,53 @@ void RenderApp::initFrames() {
     }
 }
 
+void RenderApp::updateState() {
+    uint64_t timeNow = getTimestampMs();
+    state.frameTime = timeNow - state.lastRenderTimestamp;
+    state.lastRenderTimestamp = timeNow;
+    if (!scene.has_value()) {
+        return;
+    }
+    auto& sceneRef = (*scene).get();
+    glm::fvec3 front = glm::normalize(sceneRef.view.front);
+    glm::fvec3 up = glm::normalize(sceneRef.view.up);
+    glm::fvec3 right = glm::normalize(glm::cross(front, up));
+
+    float displacement = (state.frameTime / 1000.0) * state.moveSpeed;
+    if (windowApp.getKeyState(GLFW_KEY_W) == GLFW_PRESS) {
+        sceneRef.view.eye += displacement * front;
+    }
+    if (windowApp.getKeyState(GLFW_KEY_S) == GLFW_PRESS) {
+        sceneRef.view.eye -= displacement * front;
+    }
+    if (windowApp.getKeyState(GLFW_KEY_A) == GLFW_PRESS) {
+        sceneRef.view.eye -= displacement * right;
+    }
+    if (windowApp.getKeyState(GLFW_KEY_D) == GLFW_PRESS) {
+        sceneRef.view.eye += displacement * right;
+    }
+    if (windowApp.getKeyState(GLFW_KEY_SPACE) == GLFW_PRESS) {
+        sceneRef.view.eye += displacement * up;
+    }
+    if (windowApp.getKeyState(GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS) {
+        sceneRef.view.eye -= displacement * up;
+    }
+}
+
 void RenderApp::drawFrame() {
+    if (state.quit) {
+        return;
+    }
     if (windowApp.isMinimized()) {
         this->framebufferResized = true;
         // std::println("Minimized, skip rendering");
         return;
     }
+
+    updateState();
+
     auto size = windowApp.getFrameSize();
     // ImGui::GetIO().DisplaySize = ImVec2{size.width * 1.f, size.height * 1.f};
-    uint64_t timeNow = getTimestampMs();
-    state.frameTime = timeNow - state.lastRenderTimestamp;
-    state.lastRenderTimestamp = timeNow;
 
     // Note: inFlightFences, presentCompleteSemaphores, and commandBuffers
     // are indexed by frameIndex, while renderFinishedSemaphores is indexed by imageIndex
@@ -273,9 +298,7 @@ void RenderApp::drawFrame() {
                     (1.0 * size.width) / size.height
                 );
             }
-
-            auto drawData = Imgui::drawImgui(state, *scene);
-            ImGui_ImplVulkan_RenderDrawData(drawData, *currentCmdBuffer);
+            imgui.renderVk(imgui.drawImgui(state, *scene), currentCmdBuffer);
             currentCmdBuffer.endRendering();
         }
 
@@ -353,8 +376,8 @@ void RenderApp::drawFrame() {
     frameIndex %= MAX_FRAMES_IN_FLIGHT;
 }
 
-RenderApp::RenderApp(VulkanContext& context, WindowApp& windowApp, SwapChain& swapChain)
-    : context(context), windowApp(windowApp), swapChain(swapChain) {
+RenderApp::RenderApp(AppState& state, VulkanContext& context, WindowApp& windowApp, SwapChain& swapChain, ImguiApp& imgui)
+    : state(state), context(context), windowApp(windowApp), swapChain(swapChain), imgui(imgui) {
     init();
 }
 
@@ -365,18 +388,6 @@ void RenderApp::setScene(Scene& scene) {
 RenderApp::~RenderApp() = default;
 
 void RenderApp::run() {
-    windowApp.cleanupCallBack =
-        [this]() {
-            this->context.device.waitIdle();
-            ImGui_ImplVulkan_Shutdown();
-        };
-    windowApp.resizeCallBack =
-        [this](int, int) {
-            this->framebufferResized = true;
-        };
-    windowApp.drawFrameCallBack =
-        [this]() {
-            this->drawFrame();
-        };
+   
     windowApp.run();
 }

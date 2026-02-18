@@ -14,19 +14,51 @@
 #include <GLFW/glfw3.h>
 #include <vulkan/vulkan_core.h>
 
-// imgui
-#include <backends/imgui_impl_glfw.h>
+#include "AppState.hpp"
+
+namespace {
+
+void updateState(GLFWwindow* window, AppState& state) {
+    state.inputs.mouseState = glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT);
+    double x, y;
+    glfwGetCursorPos(window, &x, &y);
+    state.inputs.mousePos = {x, y};
+    if (state.quit) {
+        glfwSetWindowShouldClose(window, GLFW_TRUE);
+    }
+}
+
+}  // namespace
 
 void WindowApp::resizeCallBackHelper(GLFWwindow* window, int width, int height) {
     auto windowPtr = glfwGetWindowUserPointer(window);
     assert(windowPtr != nullptr);
     WindowApp* self = reinterpret_cast<WindowApp*>(windowPtr);
     assert(window == self->window.get());
+
     self->getScale();
-    self->resizeCallBack(width, height);
+    try {
+        self->resizeCallBack(width, height);
+    }
+    catch (const std::bad_function_call& e) {
+    }
 }
 
-WindowApp::WindowApp(int width, int height, std::string_view tittle) {
+void WindowApp::keyCallbackHelper(GLFWwindow* window, int key, int, int action, int) {
+    auto windowPtr = glfwGetWindowUserPointer(window);
+    assert(windowPtr != nullptr);
+    WindowApp* self = reinterpret_cast<WindowApp*>(windowPtr);
+    assert(window == self->window.get());
+    try {
+        self->keyCallback(key, action);
+    }
+    catch (const std::bad_function_call& e) {
+    }
+}
+
+WindowApp::WindowApp(
+    int width, int height, std::string_view tittle, AppState& state
+) : state(state) {
     glfwInit();
 
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
@@ -37,32 +69,25 @@ WindowApp::WindowApp(int width, int height, std::string_view tittle) {
     window.reset(glfwCreateWindow(
         width,
         height,
-        "Learn Vulkan",
+        tittle.data(),
         nullptr,
         nullptr
     ));
     void* selfPtr = this;
     glfwSetWindowUserPointer((GLFWwindow*)window.get(), selfPtr);
-    glfwSetFramebufferSizeCallback(
-        window.get(),
-        &resizeCallBackHelper
-    );
-
-    ImGui::CreateContext();
-    if (!ImGui_ImplGlfw_InitForVulkan(window.get(), true)) {
-        throw std::runtime_error("Failed to init IMGUI for GLFW");
-    }
+    glfwSetFramebufferSizeCallback(window.get(), &resizeCallBackHelper);
+    glfwSetKeyCallback(window.get(), &keyCallbackHelper);
 }
+
+WindowApp::~WindowApp() = default;
 
 void WindowApp::run() {
     while (!glfwWindowShouldClose(window.get())) {
         glfwPollEvents();
+        updateState(window.get(), state);
         drawFrameCallBack();
     }
     cleanupCallBack();
-    ImGui_ImplGlfw_Shutdown();
-    ImGui::DestroyContext();
-    // glfwTerminate();
 }
 
 Size2D<int> WindowApp::getWindowSize() const {
@@ -76,6 +101,10 @@ Size2D<int> WindowApp::getFrameSize() const {
     glfwGetFramebufferSize(window.get(), &width, &height);
     return {width, height};
 }
+
+GLFWwindow* WindowApp::getWindowPtr() {
+    return window.get();
+};
 
 bool WindowApp::isMinimized() const {
     int iconified = glfwGetWindowAttrib(window.get(), GLFW_ICONIFIED);
@@ -112,3 +141,7 @@ std::tuple<WindowApp::ScalingType, float> WindowApp::getScale() {
 
     return {scalingType, scale};
 };
+
+int WindowApp::getKeyState(int key) {
+    return glfwGetKey(window.get(), key);
+}

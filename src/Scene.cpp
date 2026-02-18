@@ -25,6 +25,11 @@ void RenderObject::render(const Layouts& layouts, vk::raii::CommandBuffer& cmd) 
     model.render(cmd);
 }
 
+Scene::Scene(std::vector<Ref<RenderObject>>& objs, AppState& state) : state(state) {
+    this->objects = objs;
+    resetCamera();
+}
+
 void Scene::render(
     const Layouts& layouts,
     vk::raii::CommandBuffer& cmd,
@@ -40,4 +45,14 @@ void Scene::render(
     for (const RenderObject& obj : objects) {
         obj.render(layouts, cmd);
     }
+}
+
+void Scene::resetCamera() {
+    view.eye = {0.f, 4.5f, 10.f};
+    view.front = {0.f, -0.5f, -1.f};
+    view.up = {0.f, 1.f, 0.f};
+
+    camera.fovy = degreeToRadian(37.8);
+    camera.clipNear = 0.1f;
+    camera.clipFar = 2000.f;
 }

@@ -5,6 +5,7 @@
 #include <vulkan/vulkan_raii.hpp>
 
 // #include "AppState.hpp"
+#include "AppState.hpp"
 #include "Camera.hpp"
 #include "utils.hpp"
 
@@ -29,6 +30,9 @@ struct Scene {
     std::vector<Ref<RenderObject>> objects;
     View view;
     Camera camera;
+    AppState& state;
+
+    Scene(std::vector<Ref<RenderObject>>& objs, AppState& state);
 
     void render(
         const Layouts&,
@@ -36,6 +40,7 @@ struct Scene {
         DynamicBuffer& ub,
         float ratio
     );
+    void resetCamera();
 };
 
 #endif  // SCENE_HPP

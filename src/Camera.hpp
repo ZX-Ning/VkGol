@@ -6,15 +6,16 @@
 
 struct View {
     glm::fvec3 eye;
-    glm::fvec3 target;
+    // glm::fvec3 target;
+    glm::fvec3 front;
     glm::fvec3 up;
     glm::fmat4x4 calcMat() {
-        return glm::lookAt(eye, target, up);
+        return glm::lookAt(eye, eye + front, up);
     }
 };
 
 struct Camera {
-    float fovy;
+    float fovy; 
     float aspectRatio;
     float clipNear;
     float clipFar;

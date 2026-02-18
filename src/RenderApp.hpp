@@ -17,6 +17,7 @@
 
 // project
 #include "AppState.hpp"
+#include "ImguiApp.hpp"
 #include "core/Buffer.hpp"
 #include "core/Model.hpp"
 #include "utils.hpp"
@@ -38,25 +39,33 @@ struct FrameData {
 
 struct RenderApp {
 private:
+    AppState& state;
     VulkanContext& context;
     WindowApp& windowApp;
     SwapChain& swapChain;
+    ImguiApp& imgui;
     OptRef<Scene> scene;
-    AppState state;
     std::vector<FrameData> frames;
     uint32_t frameIndex = 0;
 
-    bool framebufferResized = false;
     void initFrames();
 
 public:
-    RenderApp(VulkanContext& context, WindowApp& windowApp, SwapChain& swapChain);
+    bool framebufferResized = false;
+    RenderApp(
+        AppState& state,
+        VulkanContext& context,
+        WindowApp& windowApp,
+        SwapChain& swapChain,
+        ImguiApp& imgui
+    );
     ~RenderApp();
     void init();
     void run();
+    void updateState();
     void drawFrame();
     void setScene(Scene& scene);
     DISABLE_COPY(RenderApp)
 };
 
-#endif // RENDER_HPP
+#endif  // RENDER_HPP
