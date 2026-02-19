@@ -2,12 +2,13 @@
 
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtx/vector_angle.hpp>
 #include <print>
 
 #include "Consts.hpp"
 #include "ModelLoader.hpp"
 
-static const std::unordered_map<int, glm::fvec3> KEY_MOVE{
+static const std::unordered_map<int, glm::vec<3, int8_t>> KEY_MOVE{
     {GLFW_KEY_W, {0, 0, -1}},
     {GLFW_KEY_A, {-1, 0, 0}},
     {GLFW_KEY_S, {0, 0, 1}},
@@ -80,12 +81,20 @@ void App::onDraw() {
         return;
     }
     Scene& scene = (*state->currentScene);
-    auto viewMatT = glm::transpose(glm::mat3x3(scene.view.calcMat()));  // 4x4 to 3x3
+
     float displacement = (state->frameTime / 1000.0) * state->moveSpeed;
     for (auto& [k, v] : KEY_MOVE) {
+        glm::fvec3 right = glm::cross(scene.view.front, scene.view.up);
+        glm::fvec3 forward = glm::cross(right, scene.view.up);
         if (window->getKeyState(k) == GLFW_PRESS) {
-            glm::fvec3 move = viewMatT * v;
-            scene.view.eye += move * displacement;
+            glm::fvec3 move = v;
+            if (move.x != 0) {  // left-right
+                move = move.x * right;
+            }
+            else if (move.z != 0) {  // forward-backward
+                move = move.z * forward;
+            }
+            scene.view.eye += glm::normalize(move) * displacement;
         }
     }
 
@@ -93,14 +102,20 @@ void App::onDraw() {
         (state->inputs.mouseState == GLFW_PRESS && !imgui->wantMouse())) {
         glm::fvec3 move(state->inputs.lastMousePos - state->inputs.mousePos, 0.f);
         move.y = -move.y;  // flip y
-        move = viewMatT * move;
         float moveNorm = glm::length(move);
-        if (moveNorm < 20.f && moveNorm > 0.1f) {
+        if (moveNorm < 40.f && moveNorm > 0.1f) {
+            auto viewMatInv = glm::inverse(glm::mat3x3(scene.view.calcMat()));
+            move = viewMatInv * move;
             float angle = degreeToRadian(std::clamp(state->mouseSpeed * moveNorm, 0.f, 89.f));
             glm::fvec3 axis = glm::cross(move, scene.view.front);
             glm::mat3x3 rMat = glm::mat3_cast(glm::angleAxis(angle, glm::normalize(axis)));
             // scene.view.up = rMat * scene.view.up;
-            scene.view.front = glm::normalize(rMat * scene.view.front);
+            glm::fvec3 newFront = glm::normalize(rMat * scene.view.front);
+            float iAngle = radianToDegree(glm::angle(scene.view.up, newFront));
+            // std::println("iAngle: {}", iAngle);
+            if (iAngle > 1.f && iAngle < 179.f) {
+                scene.view.front = newFront;
+            }
         }
     }
 
