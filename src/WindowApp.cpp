@@ -16,19 +16,26 @@
 
 #include "AppState.hpp"
 
-namespace {
-
-void updateState(GLFWwindow* window, AppState& state) {
+void WindowApp::updateState(AppState& state) {
+    GLFWwindow* window = this->window.get();
     state.inputs.mouseState = glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT);
     double x, y;
     glfwGetCursorPos(window, &x, &y);
-    state.inputs.mousePos = {x, y};
+    state.inputs.lastMousePos = state.inputs.mousePos;
+    state.inputs.mousePos = {(float)x, (float)y};
+
+    if (state.inputs.mouseState == GLFW_PRESS || !state.showImGui) {
+        glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+    }
+    else {
+        glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+    }
+
     if (state.quit) {
+        glfwSetCursor(window, NULL);
         glfwSetWindowShouldClose(window, GLFW_TRUE);
     }
 }
-
-}  // namespace
 
 void WindowApp::resizeCallBackHelper(GLFWwindow* window, int width, int height) {
     auto windowPtr = glfwGetWindowUserPointer(window);
@@ -77,6 +84,8 @@ WindowApp::WindowApp(
     glfwSetWindowUserPointer((GLFWwindow*)window.get(), selfPtr);
     glfwSetFramebufferSizeCallback(window.get(), &resizeCallBackHelper);
     glfwSetKeyCallback(window.get(), &keyCallbackHelper);
+    handCursor = glfwCreateStandardCursor(GLFW_HAND_CURSOR);
+    glfwSetInputMode(window.get(), GLFW_RAW_MOUSE_MOTION, GLFW_TRUE);
 }
 
 WindowApp::~WindowApp() = default;
@@ -84,7 +93,7 @@ WindowApp::~WindowApp() = default;
 void WindowApp::run() {
     while (!glfwWindowShouldClose(window.get())) {
         glfwPollEvents();
-        updateState(window.get(), state);
+        updateState(state);
         drawFrameCallBack();
     }
     cleanupCallBack();

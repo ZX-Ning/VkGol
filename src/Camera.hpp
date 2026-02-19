@@ -3,6 +3,7 @@
 
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/quaternion.hpp>
 
 struct View {
     glm::fvec3 eye;
@@ -15,7 +16,7 @@ struct View {
 };
 
 struct Camera {
-    float fovy; 
+    float fovy;
     float aspectRatio;
     float clipNear;
     float clipFar;

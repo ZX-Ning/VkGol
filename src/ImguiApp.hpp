@@ -31,7 +31,8 @@ struct ImguiApp {
         vk::Format format,
         uint32_t imageCount
     );
-    ImDrawData* drawImgui(AppState& state, OptRef<Scene> scene);
+    ImDrawData* drawImgui(AppState& state);
+    bool wantMouse();
     void renderVk(ImDrawData* drawData, vk::raii::CommandBuffer& cmd);
     ~ImguiApp();
     DISABLE_COPY(ImguiApp)

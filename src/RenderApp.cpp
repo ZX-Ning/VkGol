@@ -106,39 +106,6 @@ void RenderApp::initFrames() {
     }
 }
 
-void RenderApp::updateState() {
-    uint64_t timeNow = getTimestampMs();
-    state.frameTime = timeNow - state.lastRenderTimestamp;
-    state.lastRenderTimestamp = timeNow;
-    if (!scene.has_value()) {
-        return;
-    }
-    auto& sceneRef = (*scene).get();
-    glm::fvec3 front = glm::normalize(sceneRef.view.front);
-    glm::fvec3 up = glm::normalize(sceneRef.view.up);
-    glm::fvec3 right = glm::normalize(glm::cross(front, up));
-
-    float displacement = (state.frameTime / 1000.0) * state.moveSpeed;
-    if (windowApp.getKeyState(GLFW_KEY_W) == GLFW_PRESS) {
-        sceneRef.view.eye += displacement * front;
-    }
-    if (windowApp.getKeyState(GLFW_KEY_S) == GLFW_PRESS) {
-        sceneRef.view.eye -= displacement * front;
-    }
-    if (windowApp.getKeyState(GLFW_KEY_A) == GLFW_PRESS) {
-        sceneRef.view.eye -= displacement * right;
-    }
-    if (windowApp.getKeyState(GLFW_KEY_D) == GLFW_PRESS) {
-        sceneRef.view.eye += displacement * right;
-    }
-    if (windowApp.getKeyState(GLFW_KEY_SPACE) == GLFW_PRESS) {
-        sceneRef.view.eye += displacement * up;
-    }
-    if (windowApp.getKeyState(GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS) {
-        sceneRef.view.eye -= displacement * up;
-    }
-}
-
 void RenderApp::drawFrame() {
     if (state.quit) {
         return;
@@ -148,9 +115,7 @@ void RenderApp::drawFrame() {
         // std::println("Minimized, skip rendering");
         return;
     }
-
-    updateState();
-
+    
     auto size = windowApp.getFrameSize();
     // ImGui::GetIO().DisplaySize = ImVec2{size.width * 1.f, size.height * 1.f};
 
@@ -281,24 +246,24 @@ void RenderApp::drawFrame() {
             currentCmdBuffer.setScissor(
                 0, vk::Rect2D(vk::Offset2D(0, 0), swapChain.extent)
             );
-            currentCmdBuffer.bindDescriptorSets(
-                vk::PipelineBindPoint::eGraphics,
-                context.defaultLayouts->pipelineLayout,
-                0,
-                *currentFrame.sceneDescriptorSet,
-                nullptr
-            );
 
-            if (scene.has_value()) {
-                auto& sceneRef = (*scene).get();
-                sceneRef.render(
+            if (state.currentScene.has_value()) {
+                currentCmdBuffer.bindDescriptorSets(
+                    vk::PipelineBindPoint::eGraphics,
+                    context.defaultLayouts->pipelineLayout,
+                    0,
+                    *currentFrame.sceneDescriptorSet,
+                    nullptr
+                );
+                Scene& scene = (*state.currentScene);
+                scene.render(
                     *context.defaultLayouts,
                     currentCmdBuffer,
                     *(currentFrame.sceneUniformBuf),
                     (1.0 * size.width) / size.height
                 );
             }
-            imgui.renderVk(imgui.drawImgui(state, *scene), currentCmdBuffer);
+            imgui.renderVk(imgui.drawImgui(state), currentCmdBuffer);
             currentCmdBuffer.endRendering();
         }
 
@@ -381,13 +346,8 @@ RenderApp::RenderApp(AppState& state, VulkanContext& context, WindowApp& windowA
     init();
 }
 
-void RenderApp::setScene(Scene& scene) {
-    this->scene = scene;
-}
-
 RenderApp::~RenderApp() = default;
 
 void RenderApp::run() {
-   
     windowApp.run();
 }

@@ -98,10 +98,29 @@ void ImguiApp::initImguiForVk(
     ImGui_ImplVulkan_Init(&initInfo);
 }
 
-ImDrawData* ImguiApp::drawImgui(AppState& state, OptRef<Scene> scene) {
+ImDrawData* ImguiApp::drawImgui(AppState& state) {
     ImGui_ImplGlfw_NewFrame();
     ImGui_ImplVulkan_NewFrame();
     ImGui::NewFrame();
+
+    const ImGuiViewport* viewport = ImGui::GetMainViewport();
+    ImGui::SetNextWindowPos(viewport->Pos);
+    ImGui::SetNextWindowSize(viewport->Size);
+    ImGuiWindowFlags window_flags =
+        ImGuiWindowFlags_NoDecoration |
+        ImGuiWindowFlags_NoMove |
+        ImGuiWindowFlags_NoSavedSettings |
+        ImGuiWindowFlags_NoBackground |
+        ImGuiWindowFlags_NoInputs;
+    {
+        ImGui::Begin("##Fullscreen", nullptr, window_flags);
+        ImDrawList* drawList = ImGui::GetWindowDrawList();
+        float w = viewport->Size.x / 2.f;
+        float h = viewport->Size.y / 2.f;
+        drawList->AddLine({w, h - 8.f}, {w, h + 8.f}, 0xFFFFFFFF, 2.f);
+        drawList->AddLine({w - 10.f, h}, {w + 10.f, h}, 0xFFFFFFFF, 2.f);
+        ImGui::End();
+    }
 
     // auto imguiScale = ImGui::GetIO().DisplayFramebufferScale;
     // auto size = ImGui::GetMainViewport()->Size;
@@ -115,17 +134,29 @@ ImDrawData* ImguiApp::drawImgui(AppState& state, OptRef<Scene> scene) {
         );
         // ImGui::SameLine();
         // ImGui::Checkbox("Demo Window", &state.showDemoWindow);
-        if (scene.has_value()) {
-            Scene& sceneRef = *scene;
-            ImGui::DragFloat3(
-                "Front",
-                reinterpret_cast<float*>(&sceneRef.view.front),
+        if (state.currentScene.has_value()) {
+            Scene& scene = *state.currentScene;
+            ImGui::DragFloat(
+                "Move Speed (1/s)",
+                reinterpret_cast<float*>(&state.moveSpeed),
                 0.01f,
-                -20.f,
-                10.f
+                0.f,
+                20.f,
+                "%.2f"
             );
+            ImGui::DragFloat(
+                "Mouse (deg/px)",
+                reinterpret_cast<float*>(&state.mouseSpeed),
+                0.002f,
+                0.f,
+                1.f,
+                "%.5f"
+            );
+            View view = (*state.currentScene).get().view;
+            ImGui::Text("View Front: %.1f, %.1f, %.1f", view.front[0], view.front[1], view.front[2]);
+            ImGui::Text("View Up: %.1f, %.1f, %.1f", view.up[0], view.up[1], view.up[2]);
 
-            float degreeFov = radianToDegree(sceneRef.camera.fovy);
+            float degreeFov = radianToDegree(scene.camera.fovy);
             ImGui::DragFloat(
                 "Fov",
                 &degreeFov,
@@ -142,18 +173,16 @@ ImDrawData* ImguiApp::drawImgui(AppState& state, OptRef<Scene> scene) {
                 720.f,
                 "%.2f"
             );
-            sceneRef.camera.fovy = degreeToRadian(degreeFov);
+            scene.camera.fovy = degreeToRadian(degreeFov);
 
-
-
-            auto& eye = sceneRef.view.eye;
+            auto& eye = scene.view.eye;
             ImGui::InputFloat3(
                 "Coord",
                 reinterpret_cast<float*>(&eye),
                 "%.2f"
             );
             if (ImGui::Button("Reset Camera")) {
-                sceneRef.resetCamera();
+                scene.resetCamera();
             }
         }
         if (getTimestampMs() - lastShowFpsTime > (float)FPS_UPDATE_INTERVAL_MS) {
@@ -171,6 +200,10 @@ ImDrawData* ImguiApp::drawImgui(AppState& state, OptRef<Scene> scene) {
     // }
     ImGui::Render();
     return ImGui::GetDrawData();
+}
+
+bool ImguiApp::wantMouse() {
+    return ImGui::GetIO().WantCaptureMouse;
 }
 
 void ImguiApp::renderVk(ImDrawData* drawData, vk::raii::CommandBuffer& cmd) {

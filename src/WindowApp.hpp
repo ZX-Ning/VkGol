@@ -32,6 +32,8 @@ struct WindowApp {
 private:
     // unique_ptr makes WindowApp moveable but not copyable
     GLFWwindowWrapper window;
+    GLFWcursor* handCursor;
+    void updateState(AppState& state);
     static void resizeCallBackHelper(GLFWwindow* window, int width, int height);
     static void keyCallbackHelper(GLFWwindow* window, int key, int scancode, int action, int mods);
 

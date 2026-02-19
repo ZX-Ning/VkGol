@@ -44,7 +44,6 @@ private:
     WindowApp& windowApp;
     SwapChain& swapChain;
     ImguiApp& imgui;
-    OptRef<Scene> scene;
     std::vector<FrameData> frames;
     uint32_t frameIndex = 0;
 
@@ -62,9 +61,7 @@ public:
     ~RenderApp();
     void init();
     void run();
-    void updateState();
     void drawFrame();
-    void setScene(Scene& scene);
     DISABLE_COPY(RenderApp)
 };
 

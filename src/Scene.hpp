@@ -4,8 +4,6 @@
 #include <glm/gtc/quaternion.hpp>
 #include <vulkan/vulkan_raii.hpp>
 
-// #include "AppState.hpp"
-#include "AppState.hpp"
 #include "Camera.hpp"
 #include "utils.hpp"
 
@@ -13,6 +11,7 @@ struct Model;
 struct DynamicBuffer;
 struct VulkanContext;
 struct Layouts;
+struct AppState;
 
 struct RenderObject {
     Model& model;

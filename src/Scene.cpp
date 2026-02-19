@@ -4,6 +4,7 @@
 #include "core/Model.hpp"
 #include "core/UniformData.hpp"
 #include "core/VulkanContext.hpp"
+#include "AppState.hpp"
 
 glm::fmat4x4 RenderObject::calcModelMatrix() const {
     glm::mat4 t = glm::translate(glm::mat4(1.0f), position);
@@ -28,6 +29,7 @@ void RenderObject::render(const Layouts& layouts, vk::raii::CommandBuffer& cmd) 
 Scene::Scene(std::vector<Ref<RenderObject>>& objs, AppState& state) : state(state) {
     this->objects = objs;
     resetCamera();
+    state.currentScene = *this;
 }
 
 void Scene::render(

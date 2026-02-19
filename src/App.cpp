@@ -2,9 +2,19 @@
 
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
+#include <print>
 
 #include "Consts.hpp"
 #include "ModelLoader.hpp"
+
+static const std::unordered_map<int, glm::fvec3> KEY_MOVE{
+    {GLFW_KEY_W, {0, 0, -1}},
+    {GLFW_KEY_A, {-1, 0, 0}},
+    {GLFW_KEY_S, {0, 0, 1}},
+    {GLFW_KEY_D, {1, 0, 0}},
+    {GLFW_KEY_SPACE, {0, 1, 0}},
+    {GLFW_KEY_LEFT_SHIFT, {0, -1, 0}}
+};
 
 App::App() {
     state = std::make_unique<AppState>();
@@ -63,11 +73,42 @@ void App::onDraw() {
         float angle = obj.angle + dAngle;
         obj.angle = std::fmod(angle, std::numbers::pi * 2);
     }
+    uint64_t timeNow = getTimestampMs();
+    state->frameTime = timeNow - state->lastRenderTimestamp;
+    state->lastRenderTimestamp = timeNow;
+    if (!state->currentScene.has_value()) {
+        return;
+    }
+    Scene& scene = (*state->currentScene);
+    auto viewMatT = glm::transpose(glm::mat3x3(scene.view.calcMat()));  // 4x4 to 3x3
+    float displacement = (state->frameTime / 1000.0) * state->moveSpeed;
+    for (auto& [k, v] : KEY_MOVE) {
+        if (window->getKeyState(k) == GLFW_PRESS) {
+            glm::fvec3 move = viewMatT * v;
+            scene.view.eye += move * displacement;
+        }
+    }
+
+    if (!state->showImGui ||
+        (state->inputs.mouseState == GLFW_PRESS && !imgui->wantMouse())) {
+        glm::fvec3 move(state->inputs.lastMousePos - state->inputs.mousePos, 0.f);
+        move.y = -move.y;  // flip y
+        move = viewMatT * move;
+        float moveNorm = glm::length(move);
+        if (moveNorm < 20.f && moveNorm > 0.1f) {
+            float angle = degreeToRadian(std::clamp(state->mouseSpeed * moveNorm, 0.f, 89.f));
+            glm::fvec3 axis = glm::cross(move, scene.view.front);
+            glm::mat3x3 rMat = glm::mat3_cast(glm::angleAxis(angle, glm::normalize(axis)));
+            // scene.view.up = rMat * scene.view.up;
+            scene.view.front = glm::normalize(rMat * scene.view.front);
+        }
+    }
+
     this->renderApp->drawFrame();
 }
 
 void App::run() {
     setupCallback();
-    renderApp->setScene(*scene);
+    std::println("{}", Consts::HELP_MSG);
     renderApp->run();
 }
