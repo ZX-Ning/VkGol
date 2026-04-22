@@ -270,7 +270,7 @@ std::unique_ptr<Layouts> Layouts::createDefaultLayout(const VulkanContext& conte
             context.device,
             vk::DescriptorSetLayoutCreateInfo{
                 .bindingCount = 1,
-                .pBindings = DefaultScenceUBO::descriptorSetLayoutBindings().data()
+                .pBindings = DefaultSceneUBO::descriptorSetLayoutBindings().data()
             }
         )
     );
@@ -326,7 +326,7 @@ VulkanContext::VulkanContext(WindowApp& windowApp) {
     };
     this->loadingCmdBuffer =
         std::move(device.allocateCommandBuffers(allocInfo)[0]);
-    this->surfaceForamt = chooseSwapSurfaceFormat(
+    this->surfaceFormat = chooseSwapSurfaceFormat(
         physicalDevice.getSurfaceFormatsKHR(surface)
     );
     this->defaultLayouts = Layouts::createDefaultLayout(*this);

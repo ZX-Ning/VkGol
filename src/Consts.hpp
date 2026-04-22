@@ -4,7 +4,7 @@ namespace Consts {
 
 constexpr uint32_t WIDTH = 1200;
 constexpr uint32_t HEIGHT = 720;
-inline const char* TITTLE = "Learn Vulkan";
+inline const char* TITLE = "Learn Vulkan";
 inline const char* FONT = "assets/fonts/IBMPlex/IBMPlexSans-Regular.ttf";
 inline const char* DOG_TEXTURE_PATH = "assets/textures/dog.png";
 inline const char* SHADER_SPV_PATH = "shaders/shader.spv";

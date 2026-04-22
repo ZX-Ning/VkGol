@@ -15,6 +15,7 @@ const Image Image::readImage(std::span<const uint8_t> imgFileData) {
     if (data == nullptr) {
         throw std::runtime_error("Can not read image file.");
     }
+    image.channels = 4;
     image.data = ImageDataWrapper(data);
     return image;
 }

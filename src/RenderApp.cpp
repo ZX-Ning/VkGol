@@ -51,7 +51,7 @@ void RenderApp::initFrames() {
         frames[i].sceneUniformBuf = BufferFactory::createDynamicBuffer(
             BufferFactory::Type::Uniform,
             *context.allocator,
-            sizeof(DefaultScenceUBO)
+            sizeof(DefaultSceneUBO)
         );
     }
 
@@ -90,7 +90,7 @@ void RenderApp::initFrames() {
         vk::DescriptorBufferInfo bufferInfo{
             .buffer = frames[i].sceneUniformBuf->getVkBuffer(),
             .offset = 0,
-            .range = sizeof(DefaultScenceUBO)
+            .range = sizeof(DefaultSceneUBO)
         };
         std::array descriptorWrites{
             vk::WriteDescriptorSet{
@@ -129,7 +129,6 @@ void RenderApp::drawFrame() {
     if (fenceResult != vk::Result::eSuccess) {
         throw std::runtime_error("failed to wait for fence!");
     }
-    context.device.resetFences(*currentFrame.fences);
 
     auto [result, imageIndex] = swapChain.swapChain.acquireNextImage(
         UINT64_MAX,
@@ -146,6 +145,8 @@ void RenderApp::drawFrame() {
         throw std::runtime_error("failed to acquire swap chain image!");
     }
 
+    context.device.resetFences(*currentFrame.fences);
+    
     auto& currentImage = swapChain.images[imageIndex];
     auto& currentCmdBuffer = currentFrame.cmdBuffer;
     currentCmdBuffer.reset();

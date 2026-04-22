@@ -62,16 +62,16 @@ void StaticBuffer::load(
     std::span<const uint8_t> data, vk::raii::CommandBuffer& cmd
 ) {
     size_t size = data.size_bytes();
-    stagging = BufferFactory::createStaggingBuffer(allocator, size);
-    stagging->update(data);
-    copyBuffer(stagging->getVkBuffer(), this->buffer, cmd, size);
+    staging = BufferFactory::createStagingBuffer(allocator, size);
+    staging->update(data);
+    copyBuffer(staging->getVkBuffer(), this->buffer, cmd, size);
 }
 
-void StaticBuffer::deleteStagging() {
-    stagging.reset(nullptr);
+void StaticBuffer::deleteStaging() {
+    staging.reset(nullptr);
 }
 
-std::unique_ptr<DynamicBuffer> BufferFactory::createStaggingBuffer(const VmaAllocator& allocator, size_t size) {
+std::unique_ptr<DynamicBuffer> BufferFactory::createStagingBuffer(const VmaAllocator& allocator, size_t size) {
     vk::BufferCreateInfo stagingInfo{
         .size = size,
         .usage = vk::BufferUsageFlagBits::eTransferSrc,
@@ -82,6 +82,7 @@ std::unique_ptr<DynamicBuffer> BufferFactory::createStaggingBuffer(const VmaAllo
             VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT |
             VMA_ALLOCATION_CREATE_MAPPED_BIT,
         .usage = VMA_MEMORY_USAGE_AUTO,
+        .requiredFlags = VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
     };
     return std::make_unique<DynamicBuffer>(stagingInfo, stagingAllocInfo, allocator);
 }
@@ -112,7 +113,8 @@ std::shared_ptr<StaticBuffer> BufferFactory::createStaticBuffer(
             break;
         }
         case Type::Uniform: {
-            bufferInfo.usage = vk::BufferUsageFlagBits::eUniformBuffer;
+            bufferInfo.usage =
+                vk::BufferUsageFlagBits::eUniformBuffer | vk::BufferUsageFlagBits::eTransferDst;
             allocInfo.requiredFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
             break;
         }
@@ -132,15 +134,16 @@ std::shared_ptr<DynamicBuffer> BufferFactory::createDynamicBuffer(
         .usage = vk::BufferUsageFlagBits::eUniformBuffer,
         .sharingMode = vk::SharingMode::eExclusive,
     };
-    VmaAllocationCreateInfo stagingAllocInfo = {
+    VmaAllocationCreateInfo allocInfo = {
         .flags =
             VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT |
             VMA_ALLOCATION_CREATE_MAPPED_BIT,
         .usage = VMA_MEMORY_USAGE_AUTO,
+        .requiredFlags = VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
     };
     switch (type) {
         case Type::Uniform: {
-            return std::make_unique<DynamicBuffer>(stagingInfo, stagingAllocInfo, allocator);
+            return std::make_unique<DynamicBuffer>(stagingInfo, allocInfo, allocator);
         }
         default: {
             throw std::runtime_error("Not implement yet");

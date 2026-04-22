@@ -8,7 +8,7 @@ struct DefaultPushConstant {
     glm::mat4x4 model;
 };
 
-struct DefaultScenceUBO {
+struct DefaultSceneUBO {
     glm::mat4x4 view;
     glm::mat4x4 projection;
     static constexpr vk::DescriptorSetLayoutBinding descriptorSetLayoutBinding() {

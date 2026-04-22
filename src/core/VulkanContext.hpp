@@ -31,7 +31,7 @@ struct VulkanContext {
     vk::raii::DescriptorPool descriptorPool{nullptr};
 
     VmaAllocatorWrapper allocator;
-    vk::SurfaceFormatKHR surfaceForamt;
+    vk::SurfaceFormatKHR surfaceFormat;
     void initLogicalDevice();
     void initVmaAllocator();
     explicit VulkanContext(WindowApp&);

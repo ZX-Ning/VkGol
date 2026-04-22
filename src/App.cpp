@@ -19,11 +19,11 @@ static const std::unordered_map<int, glm::vec<3, int8_t>> KEY_MOVE{
 
 App::App() {
     state = std::make_unique<AppState>();
-    window = std::make_unique<WindowApp>(Consts::WIDTH, Consts::HEIGHT, Consts::TITTLE, *state);
+    window = std::make_unique<WindowApp>(Consts::WIDTH, Consts::HEIGHT, Consts::TITLE, *state);
     context = std::make_unique<VulkanContext>(*window);
     swapchain = std::make_unique<SwapChain>(*context, window->getFrameSize());
     imgui = std::make_unique<ImguiApp>(*window, *context, *swapchain);
-    defaultModel = ModelLoader::loadSimpleTraingleModel(*context);
+    defaultModel = ModelLoader::loadSimpleCubeModel(*context);
     defaultRenderobj.reset(new RenderObject{
         .model = defaultModel,
         .position = {0.f, 0.f, 1.f},

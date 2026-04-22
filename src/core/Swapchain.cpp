@@ -54,7 +54,7 @@ void SwapChain::init(const VulkanContext& context, Size2D<uint32_t> size) {
         surfaceCapabilities,
         vk::Extent2D{size.width, size.height}
     );
-    this->surfaceFormat = context.surfaceForamt;
+    this->surfaceFormat = context.surfaceFormat;
     minImageCount = chooseSwapMinImageCount(
         context.physicalDevice.getSurfaceCapabilitiesKHR(context.surface)
     );

@@ -38,8 +38,8 @@ Texture::Texture(
 
 void Texture::load(std::span<const uint8_t> data, vk::raii::CommandBuffer& cmd) {
     size_t size = data.size_bytes();
-    this->stagging = BufferFactory::createStaggingBuffer(this->allocator, size);
-    this->stagging->update(data);
+    this->staging = BufferFactory::createStagingBuffer(this->allocator, size);
+    this->staging->update(data);
 
     // transform layout: Undefined -> TransferDst
     {
@@ -69,7 +69,7 @@ void Texture::load(std::span<const uint8_t> data, vk::raii::CommandBuffer& cmd) 
             }
         );
     }
-    // copy from stagging buffer to image
+    // copy from staging buffer to image
     {
         vk::BufferImageCopy region{
             0,
@@ -80,7 +80,7 @@ void Texture::load(std::span<const uint8_t> data, vk::raii::CommandBuffer& cmd) 
             extend
         };
         cmd.copyBufferToImage(
-            stagging->getVkBuffer(),
+            staging->getVkBuffer(),
             image,
             vk::ImageLayout::eTransferDstOptimal,
             region
@@ -92,7 +92,7 @@ void Texture::load(std::span<const uint8_t> data, vk::raii::CommandBuffer& cmd) 
             .srcStageMask = vk::PipelineStageFlagBits2::eTransfer,
             .srcAccessMask = vk::AccessFlagBits2::eTransferWrite,
             .dstStageMask = vk::PipelineStageFlagBits2::eFragmentShader,
-            .dstAccessMask = vk::AccessFlagBits2::eShaderWrite,
+            .dstAccessMask = vk::AccessFlagBits2::eShaderRead,
             .oldLayout = vk::ImageLayout::eTransferDstOptimal,
             .newLayout = vk::ImageLayout::eShaderReadOnlyOptimal,
             .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
@@ -117,8 +117,8 @@ void Texture::load(std::span<const uint8_t> data, vk::raii::CommandBuffer& cmd) 
     }
 }
 
-void Texture::deleteStagging() {
-    stagging = nullptr;
+void Texture::deleteStaging() {
+    staging = nullptr;
 }
 
 Texture::~Texture() {

@@ -20,7 +20,7 @@ struct Camera {
     float aspectRatio;
     float clipNear;
     float clipFar;
-    glm::fmat4x4 clacMat() {
+    glm::fmat4x4 calcMat() {
         glm::mat4 projection = glm::perspective(fovy, aspectRatio, clipNear, clipFar);
         // projection[1][1] *= -1;
         return projection;

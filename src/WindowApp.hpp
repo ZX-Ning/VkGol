@@ -42,7 +42,7 @@ public:
         MAC_OR_WAYLAND,
         WINDOWS_OR_X11,
     } scalingType;
-    explicit WindowApp(int width, int height, std::string_view tittle, AppState& state);
+    explicit WindowApp(int width, int height, std::string_view title, AppState& state);
 
     WindowApp(const WindowApp&) = delete;
     WindowApp& operator=(const WindowApp&) = delete;

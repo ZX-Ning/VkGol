@@ -99,7 +99,7 @@ Material createMaterial(VulkanContext& context, Image& img) {
 
 }  // namespace
 
-Model ModelLoader::loadSimpleTraingleModel(VulkanContext& context) {
+Model ModelLoader::loadSimpleCubeModel(VulkanContext& context) {
     auto imgFile = readFile(Consts::DOG_TEXTURE_PATH);
     auto loadedImg = Image::readImage(imgFile);
 
@@ -127,9 +127,9 @@ Model ModelLoader::loadSimpleTraingleModel(VulkanContext& context) {
     context.queue.submit(submitInfo);
     context.queue.waitIdle();
     {
-        mesh.vertexBuffer->deleteStagging();
-        mesh.indexBuffer->deleteStagging();
-        material.texture->deleteStagging();
+        mesh.vertexBuffer->deleteStaging();
+        mesh.indexBuffer->deleteStaging();
+        material.texture->deleteStaging();
     }
     return Model{
         std::move(mesh),

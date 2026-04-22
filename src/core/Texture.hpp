@@ -21,7 +21,7 @@ public:
 private:
     VmaAllocation allocation;
     const VmaAllocator& allocator;
-    std::unique_ptr<DynamicBuffer> stagging;
+    std::unique_ptr<DynamicBuffer> staging;
     vk::Format format;
     vk::Extent3D extend;
     VmaAllocationInfo resultInfo;
@@ -34,7 +34,7 @@ public:
         const vk::SamplerCreateInfo* samplerInfo
     );
     void load(std::span<const uint8_t> data, vk::raii::CommandBuffer& cmd);
-    void deleteStagging();
+    void deleteStaging();
     static constexpr vk::DescriptorSetLayoutBinding descriptorSetLayoutBinding() {
         return {
             0,

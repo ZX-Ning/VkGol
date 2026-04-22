@@ -64,7 +64,7 @@ void WindowApp::keyCallbackHelper(GLFWwindow* window, int key, int, int action, 
 }
 
 WindowApp::WindowApp(
-    int width, int height, std::string_view tittle, AppState& state
+    int width, int height, std::string_view title, AppState& state
 ) : state(state) {
     glfwInit();
 
@@ -76,7 +76,7 @@ WindowApp::WindowApp(
     window.reset(glfwCreateWindow(
         width,
         height,
-        tittle.data(),
+        title.data(),
         nullptr,
         nullptr
     ));

@@ -5,7 +5,7 @@
 #include "core/VulkanContext.hpp"
 
 struct ModelLoader {
-    static Model loadSimpleTraingleModel(VulkanContext& context);
+    static Model loadSimpleCubeModel(VulkanContext& context);
 };
 
 #endif // MODELLOADER_HPP

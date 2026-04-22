@@ -39,9 +39,9 @@ void Scene::render(
     float ratio
 ) {
     camera.aspectRatio = ratio;
-    DefaultScenceUBO ubo{
+    DefaultSceneUBO ubo{
         glm::transpose(view.calcMat()),
-        glm::transpose(camera.clacMat())
+        glm::transpose(camera.calcMat())
     };
     ub.update(objectAsRawBytes(ubo));
     for (const RenderObject& obj : objects) {
