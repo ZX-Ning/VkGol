@@ -4,13 +4,13 @@
 #include <memory>
 
 #include "AppState.hpp"
-#include "RenderApp.hpp"
 #include "Scene.hpp"
 #include "WindowApp.hpp"
 #include "core/Model.hpp"
 #include "core/Swapchain.hpp"
 #include "core/Texture.hpp"
 #include "core/VulkanContext.hpp"
+#include "renderer/RenderApp.hpp"
 
 struct App {
 private:

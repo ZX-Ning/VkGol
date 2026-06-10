@@ -7,18 +7,20 @@
 #include <vector>
 
 // vulkan-hpp headers
+#include <vulkan/vulkan_core.h>
+
 #include <vulkan/vulkan.hpp>
 #include <vulkan/vulkan_raii.hpp>
 #include <vulkan/vulkan_structs.hpp>
 
-#include <vulkan/vulkan_core.h>
-
 // project
-#include "AppState.hpp"
-#include "ImguiApp.hpp"
-#include "core/Buffer.hpp"
-#include "core/Model.hpp"
-#include "utils.hpp"
+#include "../AppState.hpp"
+#include "../ImguiApp.hpp"
+#include "../core/Buffer.hpp"
+#include "../core/FrameContext.hpp"
+#include "../core/Model.hpp"
+#include "../utils.hpp"
+#include "ForwardPass.hpp"
 
 // forward declaration
 struct WindowApp;
@@ -27,14 +29,6 @@ struct SwapChain;
 struct Scene;
 ////////////////////////
 
-struct FrameData {
-    vk::raii::CommandBuffer cmdBuffer{nullptr};
-    vk::raii::Semaphore presentComplete{nullptr};
-    vk::raii::Fence fences{nullptr};
-    vk::raii::DescriptorSet sceneDescriptorSet{nullptr};
-    std::shared_ptr<DynamicBuffer> sceneUniformBuf;
-};
-
 struct RenderApp {
 private:
     AppState& state;
@@ -42,10 +36,9 @@ private:
     WindowApp& windowApp;
     SwapChain& swapChain;
     ImguiApp& imgui;
-    std::vector<FrameData> frames;
+    ForwardPass forwardPass;
+    std::vector<FrameContext> frames;
     uint32_t frameIndex = 0;
-
-    void initFrames();
 
 public:
     bool framebufferResized = false;

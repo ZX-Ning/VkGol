@@ -3,8 +3,8 @@
 #include <vulkan/vulkan_enums.hpp>
 #include <vulkan/vulkan_raii.hpp>
 
-#include "VulkanContext.hpp"
 #include "Texture.hpp"
+#include "VulkanContext.hpp"
 
 namespace {
 vk::Extent2D chooseSwapExtent(
@@ -75,8 +75,8 @@ void SwapChain::init(const VulkanContext& context, Size2D<uint32_t> size) {
         .clipped = true
     };
 
-    this->swapChain = vk::raii::SwapchainKHR{context.device, swapChainCreateInfo};
-    auto swapChainImages = swapChain.getImages();
+    this->vkSwapChain = vk::raii::SwapchainKHR{context.device, swapChainCreateInfo};
+    auto swapChainImages = vkSwapChain.getImages();
 
     vk::ImageViewCreateInfo imageViewCreateInfo{
         .viewType = vk::ImageViewType::e2D,
@@ -108,9 +108,26 @@ SwapChain::SwapChain(const VulkanContext& context, Size2D<uint32_t> size) {
 void SwapChain::recreate(const VulkanContext& context, Size2D<uint32_t> size) {
     context.device.waitIdle();
     // Don't use release, which does not delete the resource.
-    swapChain = nullptr;
+    vkSwapChain = nullptr;
     extent = vk::Extent2D{0, 0},
     images.clear();
-    
+
     init(context, size);
 };
+
+uint32_t SwapChain::acquireNextImage(vk::raii::Semaphore& semaphore) {
+    auto [result, imageIndex] = this->vkSwapChain.acquireNextImage(
+        UINT64_MAX,
+        *semaphore,
+        nullptr
+    );
+
+    if (result == vk::Result::eErrorOutOfDateKHR) {
+        throw SwapChainOutOfDateError{};
+    }
+    if (result != vk::Result::eSuccess &&
+        result != vk::Result::eSuboptimalKHR) {
+        throw std::runtime_error("failed to acquire swap chain image!");
+    }
+    return imageIndex;
+}
