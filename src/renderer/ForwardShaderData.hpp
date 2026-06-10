@@ -1,5 +1,7 @@
-#ifndef UNIFORMDATA_HPP
-#define UNIFORMDATA_HPP
+#ifndef FORWARD_SHADER_DATA_HPP
+#define FORWARD_SHADER_DATA_HPP
+
+#include <array>
 
 #include <glm/glm.hpp>
 #include <vulkan/vulkan.hpp>
@@ -27,4 +29,4 @@ struct DefaultSceneUBO {
     }
 };
 
-#endif  // UNIFORMDATA_HPP
+#endif  // FORWARD_SHADER_DATA_HPP

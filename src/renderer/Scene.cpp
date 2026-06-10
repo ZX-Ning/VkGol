@@ -1,10 +1,9 @@
 #include "Scene.hpp"
 
-#include "core/Buffer.hpp"
-#include "core/Model.hpp"
-#include "core/UniformData.hpp"
-#include "core/VulkanContext.hpp"
-#include "AppState.hpp"
+#include "../AppState.hpp"
+#include "../core/Buffer.hpp"
+#include "../core/Model.hpp"
+#include "ForwardShaderData.hpp"
 
 glm::fmat4x4 RenderObject::calcModelMatrix() const {
     glm::mat4 t = glm::translate(glm::mat4(1.0f), position);
@@ -14,11 +13,14 @@ glm::fmat4x4 RenderObject::calcModelMatrix() const {
     return t * r * s;
 }
 
-void RenderObject::render(const Layouts& layouts, vk::raii::CommandBuffer& cmd) const {
-    model.bind(layouts.pipelineLayout, cmd);
+void RenderObject::render(
+    const vk::raii::PipelineLayout& pipelineLayout,
+    vk::raii::CommandBuffer& cmd
+) const {
+    model.bind(pipelineLayout, cmd);
     DefaultPushConstant pc{glm::transpose(calcModelMatrix())};
     cmd.pushConstants(
-        layouts.pipelineLayout,
+        pipelineLayout,
         vk::ShaderStageFlagBits::eAllGraphics,
         0,
         vk::ArrayProxy<const DefaultPushConstant>{1, &pc}
@@ -33,7 +35,7 @@ Scene::Scene(std::vector<Ref<RenderObject>>& objs, AppState& state) : state(stat
 }
 
 void Scene::render(
-    const Layouts& layouts,
+    const vk::raii::PipelineLayout& pipelineLayout,
     vk::raii::CommandBuffer& cmd,
     DynamicBuffer& ub,
     float ratio
@@ -45,7 +47,7 @@ void Scene::render(
     };
     ub.update(objectAsRawBytes(ubo));
     for (const RenderObject& obj : objects) {
-        obj.render(layouts, cmd);
+        obj.render(pipelineLayout, cmd);
     }
 }
 

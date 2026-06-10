@@ -1,8 +1,8 @@
 #include "FrameContext.hpp"
 
-#include "Buffer.hpp"
-#include "UniformData.hpp"
-#include "VulkanContext.hpp"
+#include "../core/Buffer.hpp"
+#include "../core/VulkanContext.hpp"
+#include "ForwardShaderData.hpp"
 
 void FrameContext::reset(const vk::raii::Device& device) {
     device.resetFences(*fences);
@@ -19,7 +19,8 @@ void FrameContext::wait(const vk::raii::Device& device) {
 
 std::vector<FrameContext> FrameContext::createFrameInFlights(
     const VulkanContext& ctx,
-    int fif
+    int fif,
+    vk::DescriptorSetLayout sceneSetLayout
 ) {
     std::vector<FrameContext> frames(fif);
     // create uniform buffers first
@@ -37,9 +38,8 @@ std::vector<FrameContext> FrameContext::createFrameInFlights(
     };
     vk::raii::CommandBuffers commandbufs{ctx.device, allocInfo};
 
-    auto layouts = *ctx.defaultLayouts->setLayouts[0];
     std::vector<vk::DescriptorSetLayout> desSetLayouts(
-        fif, layouts
+        fif, sceneSetLayout
     );
     vk::DescriptorSetAllocateInfo setAllocInfo{
         .descriptorPool = ctx.descriptorPool,

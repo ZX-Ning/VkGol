@@ -22,18 +22,23 @@
 
 // project
 #include "../ImguiApp.hpp"
-#include "../Scene.hpp"
 #include "../WindowApp.hpp"
 #include "../core/Swapchain.hpp"
 #include "../core/VulkanContext.hpp"
 #include "../utils.hpp"
+#include "ForwardRenderLayout.hpp"
+#include "Scene.hpp"
 
 namespace {
 constexpr int MAX_FRAMES_IN_FLIGHT = 2;
 }  // namespace
 
 void RenderApp::init() {
-    frames = FrameContext::createFrameInFlights(this->context, MAX_FRAMES_IN_FLIGHT);
+    frames = FrameContext::createFrameInFlights(
+        context,
+        MAX_FRAMES_IN_FLIGHT,
+        *layout.sceneSetLayout
+    );
     state.lastRenderTimestamp = getTimestampMs();
 }
 
@@ -72,6 +77,7 @@ void RenderApp::drawFrame() {
     forwardPass.record(
         ForwardPassContext{
             .context = context,
+            .layout = layout,
             .frame = currentFrame,
             .target = currentImage,
             .extent = swapChain.extent,
@@ -127,8 +133,20 @@ void RenderApp::drawFrame() {
     frameIndex %= MAX_FRAMES_IN_FLIGHT;
 }
 
-RenderApp::RenderApp(AppState& state, VulkanContext& context, WindowApp& windowApp, SwapChain& swapChain, ImguiApp& imgui)
-    : state(state), context(context), windowApp(windowApp), swapChain(swapChain), imgui(imgui) {
+RenderApp::RenderApp(
+    AppState& state,
+    VulkanContext& context,
+    ForwardRenderLayout& layout,
+    WindowApp& windowApp,
+    SwapChain& swapChain,
+    ImguiApp& imgui
+)
+    : state(state),
+      context(context),
+      layout(layout),
+      windowApp(windowApp),
+      swapChain(swapChain),
+      imgui(imgui) {
     init();
 }
 

@@ -1,10 +1,7 @@
 #include "RenderPipeline.hpp"
 
-#include <ranges>
 #include <vulkan/vulkan_raii.hpp>
 
-#include "Texture.hpp"
-#include "UniformData.hpp"
 #include "VulkanContext.hpp"
 
 namespace {
@@ -23,13 +20,12 @@ vk::raii::ShaderModule createShaderModule(
 
 }  // namespace
 
-std::shared_ptr<Pipeline> createDefaultGraphicsPipeline(
+std::shared_ptr<Pipeline> createGraphicsPipeline(
     const VulkanContext& context,
-    std::span<const uint8_t> shaderSpv,
-    vk::PipelineVertexInputStateCreateInfo vertexInfo
+    const GraphicsPipelineDesc& desc
 ) {
     vk::raii::ShaderModule shaderModule =
-        createShaderModule(context.device, shaderSpv);
+        createShaderModule(context.device, desc.shaderSpv);
 
     vk::PipelineShaderStageCreateInfo vertShaderStageInfo{
         .stage = vk::ShaderStageFlagBits::eVertex,
@@ -101,7 +97,7 @@ std::shared_ptr<Pipeline> createDefaultGraphicsPipeline(
         vk::GraphicsPipelineCreateInfo{
             .stageCount = 2,
             .pStages = shaderStages,
-            .pVertexInputState = &vertexInfo,
+            .pVertexInputState = &desc.vertexInfo,
             .pInputAssemblyState = &inputAssembly,
             .pViewportState = &viewportState,
             .pRasterizationState = &rasterizer,
@@ -109,13 +105,13 @@ std::shared_ptr<Pipeline> createDefaultGraphicsPipeline(
             .pDepthStencilState = &depthStencil,
             .pColorBlendState = &colorBlending,
             .pDynamicState = &dynamicState,
-            .layout = context.defaultLayouts->pipelineLayout,
+            .layout = desc.layout,
             .renderPass = nullptr,
         },
         vk::PipelineRenderingCreateInfo{
             .colorAttachmentCount = 1,
-            .pColorAttachmentFormats = &context.surfaceFormat.format,
-            .depthAttachmentFormat = vk::Format::eD32Sfloat
+            .pColorAttachmentFormats = &desc.colorFormat,
+            .depthAttachmentFormat = desc.depthFormat
         }
     };
     return std::make_unique<Pipeline>(vk::raii::Pipeline{

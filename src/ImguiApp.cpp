@@ -7,7 +7,7 @@
 
 #include "AppState.hpp"
 #include "Consts.hpp"
-#include "Scene.hpp"
+#include "renderer/Scene.hpp"
 #include "WindowApp.hpp"
 #include "core/Swapchain.hpp"
 #include "core/VulkanContext.hpp"

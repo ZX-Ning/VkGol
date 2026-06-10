@@ -16,7 +16,11 @@ struct FrameContext {
 
     void reset(const vk::raii::Device& device);
     void wait(const vk::raii::Device& device);
-    static std::vector<FrameContext> createFrameInFlights(const VulkanContext& ctx, int fif);
+    static std::vector<FrameContext> createFrameInFlights(
+        const VulkanContext& ctx,
+        int fif,
+        vk::DescriptorSetLayout sceneSetLayout
+    );
 };
 
 #endif  // FRAMECONTEXT_HPP

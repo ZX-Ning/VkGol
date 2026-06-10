@@ -7,7 +7,6 @@
 #include <cassert>
 #include <format>
 #include <print>
-#include <ranges>
 #include <stdexcept>
 
 // vulkan
@@ -16,8 +15,6 @@
 
 #include "../WindowApp.hpp"
 #include "../utils.hpp"
-#include "Texture.hpp"
-#include "UniformData.hpp"
 
 namespace {
 
@@ -263,54 +260,6 @@ vk::raii::DescriptorPool createDescriptorPool(
 
 }  // namespace
 
-std::unique_ptr<Layouts> Layouts::createDefaultLayout(const VulkanContext& context) {
-    vk::PushConstantRange range[]{
-        vk::PushConstantRange{
-            .stageFlags = vk::ShaderStageFlagBits::eAllGraphics,
-            .offset = 0,
-            .size = sizeof(DefaultPushConstant),
-        }
-    };
-    std::vector<vk::raii::DescriptorSetLayout> setLayouts;
-    setLayouts.push_back(
-        vk::raii::DescriptorSetLayout(
-            context.device,
-            vk::DescriptorSetLayoutCreateInfo{
-                .bindingCount = 1,
-                .pBindings = DefaultSceneUBO::descriptorSetLayoutBindings().data()
-            }
-        )
-    );
-    setLayouts.push_back(
-        vk::raii::DescriptorSetLayout(
-            context.device,
-            vk::DescriptorSetLayoutCreateInfo{
-                .bindingCount = 1,
-                .pBindings = Texture::descriptorSetLayoutBindings().data()
-            }
-        )
-    );
-
-    std::vector<vk::DescriptorSetLayout> layoutHandlers =
-        setLayouts |
-        std::ranges::views::transform(
-            [](vk::raii::DescriptorSetLayout& e) {
-                return *e;
-            }
-        ) |
-        std::ranges::to<std::vector<vk::DescriptorSetLayout>>();
-
-    vk::PipelineLayoutCreateInfo pipelineLayoutInfo{
-        .setLayoutCount = static_cast<uint32_t>(layoutHandlers.size()),
-        .pSetLayouts = layoutHandlers.data(),
-        .pushConstantRangeCount = 1,
-        .pPushConstantRanges = range,
-    };
-    vk::raii::PipelineLayout PipelineLayout(context.device, pipelineLayoutInfo);
-
-    return std::make_unique<Layouts>(std::move(PipelineLayout), std::move(setLayouts));
-}
-
 VulkanContext::VulkanContext(WindowApp& windowApp) {
     std::println("Starting Vulkan instance.");
 
@@ -336,7 +285,6 @@ VulkanContext::VulkanContext(WindowApp& windowApp) {
     this->surfaceFormat = chooseSwapSurfaceFormat(
         physicalDevice.getSurfaceFormatsKHR(surface)
     );
-    this->defaultLayouts = Layouts::createDefaultLayout(*this);
     this->descriptorPool = createDescriptorPool(device);
 }
 

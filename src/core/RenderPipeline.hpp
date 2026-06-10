@@ -12,10 +12,17 @@ struct Pipeline {
     vk::raii::Pipeline pipeline{nullptr};
 };
 
-std::shared_ptr<Pipeline> createDefaultGraphicsPipeline(
+struct GraphicsPipelineDesc {
+    vk::PipelineLayout layout;
+    std::span<const uint8_t> shaderSpv;
+    vk::PipelineVertexInputStateCreateInfo vertexInfo;
+    vk::Format colorFormat;
+    vk::Format depthFormat;
+};
+
+std::shared_ptr<Pipeline> createGraphicsPipeline(
     const VulkanContext& context,
-    std::span<const uint8_t> shaderSpv,
-    vk::PipelineVertexInputStateCreateInfo vertexInfo
+    const GraphicsPipelineDesc& desc
 );
 
 #endif  // RENDERPIPELINE_HPP

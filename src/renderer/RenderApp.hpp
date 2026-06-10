@@ -17,10 +17,11 @@
 #include "../AppState.hpp"
 #include "../ImguiApp.hpp"
 #include "../core/Buffer.hpp"
-#include "../core/FrameContext.hpp"
 #include "../core/Model.hpp"
 #include "../utils.hpp"
 #include "ForwardPass.hpp"
+#include "ForwardRenderLayout.hpp"
+#include "FrameContext.hpp"
 
 // forward declaration
 struct WindowApp;
@@ -33,6 +34,7 @@ struct RenderApp {
 private:
     AppState& state;
     VulkanContext& context;
+    ForwardRenderLayout& layout;
     WindowApp& windowApp;
     SwapChain& swapChain;
     ImguiApp& imgui;
@@ -45,6 +47,7 @@ public:
     RenderApp(
         AppState& state,
         VulkanContext& context,
+        ForwardRenderLayout& layout,
         WindowApp& windowApp,
         SwapChain& swapChain,
         ImguiApp& imgui

@@ -2,12 +2,13 @@
 
 #include "../AppState.hpp"
 #include "../ImguiApp.hpp"
-#include "../Scene.hpp"
-#include "../core/FrameContext.hpp"
 #include "../core/ImageUtils.hpp"
 #include "../core/Swapchain.hpp"
 #include "../core/Texture.hpp"
 #include "../core/VulkanContext.hpp"
+#include "FrameContext.hpp"
+#include "ForwardRenderLayout.hpp"
+#include "Scene.hpp"
 
 namespace {
 
@@ -93,14 +94,14 @@ void ForwardPass::record(const ForwardPassContext& ctx) {
     if (ctx.state.currentScene.has_value()) {
         cmd.bindDescriptorSets(
             vk::PipelineBindPoint::eGraphics,
-            ctx.context.defaultLayouts->pipelineLayout,
+            ctx.layout.pipelineLayout,
             0,
             *ctx.frame.sceneDescriptorSet,
             nullptr
         );
         Scene& scene = *ctx.state.currentScene;
         scene.render(
-            *ctx.context.defaultLayouts,
+            ctx.layout.pipelineLayout,
             cmd,
             *ctx.frame.sceneUniformBuf,
             (1.0f * ctx.windowSize.width) / ctx.windowSize.height

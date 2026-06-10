@@ -10,6 +10,7 @@
 #include "core/vertex.hpp"
 #include "Consts.hpp"
 #include "CubeMesh.hpp"
+#include "renderer/ForwardRenderLayout.hpp"
 
 namespace {
 Mesh createMesh(VulkanContext& context) {
@@ -32,21 +33,30 @@ Mesh createMesh(VulkanContext& context) {
     };
 }
 
-Material createMaterial(VulkanContext& context, Image& img) {
+Material createMaterial(
+    VulkanContext& context,
+    const ForwardRenderLayout& layout,
+    Image& img
+) {
     // create render pipeline
     auto shader = readFile(Consts::SHADER_SPV_PATH);
     vk::VertexInputBindingDescription bindingDescs[] = {
         SimpleVertex::bindingDescription()
     };
     auto attributeDescs = SimpleVertex::attributeDescriptions();
-    auto pipeline = createDefaultGraphicsPipeline(
+    auto pipeline = createGraphicsPipeline(
         context,
-        asRawBytes(shader),
-        vk::PipelineVertexInputStateCreateInfo{
-            .vertexBindingDescriptionCount = 1,
-            .pVertexBindingDescriptions = bindingDescs,
-            .vertexAttributeDescriptionCount = attributeDescs.size(),
-            .pVertexAttributeDescriptions = attributeDescs.data()
+        GraphicsPipelineDesc{
+            .layout = *layout.pipelineLayout,
+            .shaderSpv = asRawBytes(shader),
+            .vertexInfo = vk::PipelineVertexInputStateCreateInfo{
+                .vertexBindingDescriptionCount = 1,
+                .pVertexBindingDescriptions = bindingDescs,
+                .vertexAttributeDescriptionCount = attributeDescs.size(),
+                .pVertexAttributeDescriptions = attributeDescs.data()
+            },
+            .colorFormat = context.surfaceFormat.format,
+            .depthFormat = vk::Format::eD32Sfloat
         }
     );
 
@@ -65,7 +75,7 @@ Material createMaterial(VulkanContext& context, Image& img) {
     vk::DescriptorSetAllocateInfo allocInfo{
         .descriptorPool = context.descriptorPool,
         .descriptorSetCount = 1,
-        .pSetLayouts = &*(context.defaultLayouts->setLayouts[1])
+        .pSetLayouts = &*layout.materialSetLayout
     };
     auto sets =
         context.device.allocateDescriptorSets(allocInfo);
@@ -99,12 +109,15 @@ Material createMaterial(VulkanContext& context, Image& img) {
 
 }  // namespace
 
-Model ModelLoader::loadSimpleCubeModel(VulkanContext& context) {
+Model ModelLoader::loadSimpleCubeModel(
+    VulkanContext& context,
+    const ForwardRenderLayout& layout
+) {
     auto imgFile = readFile(Consts::DOG_TEXTURE_PATH);
     auto loadedImg = Image::readImage(imgFile);
 
     Mesh mesh = createMesh(context);
-    Material material = createMaterial(context, loadedImg);
+    Material material = createMaterial(context, layout, loadedImg);
 
     // Write buffer
     auto& cmd = context.loadingCmdBuffer;

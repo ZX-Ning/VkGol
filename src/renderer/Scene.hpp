@@ -4,13 +4,11 @@
 #include <glm/gtc/quaternion.hpp>
 #include <vulkan/vulkan_raii.hpp>
 
-#include "Camera.hpp"
-#include "utils.hpp"
+#include "../Camera.hpp"
+#include "../utils.hpp"
 
 struct Model;
 struct DynamicBuffer;
-struct VulkanContext;
-struct Layouts;
 struct AppState;
 
 struct RenderObject {
@@ -22,7 +20,7 @@ struct RenderObject {
     glm::vec3 axis;
 
     glm::fmat4x4 calcModelMatrix() const;
-    void render(const Layouts&, vk::raii::CommandBuffer& cmd) const;
+    void render(const vk::raii::PipelineLayout&, vk::raii::CommandBuffer& cmd) const;
 };
 
 struct Scene {
@@ -34,7 +32,7 @@ struct Scene {
     Scene(std::vector<Ref<RenderObject>>& objs, AppState& state);
 
     void render(
-        const Layouts&,
+        const vk::raii::PipelineLayout&,
         vk::raii::CommandBuffer& cmd,
         DynamicBuffer& ub,
         float ratio

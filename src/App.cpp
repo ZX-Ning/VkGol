@@ -25,7 +25,8 @@ App::App() {
     context = std::make_unique<VulkanContext>(*window);
     swapchain = std::make_unique<SwapChain>(*context, window->getFrameSize());
     imgui = std::make_unique<ImguiApp>(*window, *context, *swapchain);
-    defaultModel = ModelLoader::loadSimpleCubeModel(*context);
+    forwardLayout = std::make_unique<ForwardRenderLayout>(*context);
+    defaultModel = ModelLoader::loadSimpleCubeModel(*context, *forwardLayout);
     defaultRenderobj.reset(new RenderObject{
         .model = defaultModel,
         .position = {0.f, 0.f, 1.f},
@@ -38,6 +39,7 @@ App::App() {
     renderApp = std::make_unique<RenderApp>(
         *state,
         *context,
+        *forwardLayout,
         *window,
         *swapchain,
         *imgui

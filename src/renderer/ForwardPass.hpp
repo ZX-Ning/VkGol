@@ -7,12 +7,14 @@
 
 struct AppState;
 struct FrameContext;
+struct ForwardRenderLayout;
 struct ImguiApp;
 struct SurfaceImage;
 struct VulkanContext;
 
 struct ForwardPassContext {
     VulkanContext& context;
+    ForwardRenderLayout& layout;
     FrameContext& frame;
     SurfaceImage& target;
     vk::Extent2D extent;
