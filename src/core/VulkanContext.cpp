@@ -1,9 +1,11 @@
 #include "VulkanContext.hpp"
 
-#include <GLFW/glfw3.h>
+#include <SDL3/SDL_error.h>
+#include <SDL3/SDL_vulkan.h>
 #include <vk_mem_alloc.h>
 
 #include <cassert>
+#include <format>
 #include <print>
 #include <ranges>
 #include <stdexcept>
@@ -33,11 +35,16 @@ const std::vector<const char*> requiredDeviceExtension = {
 };
 
 std::vector<const char*> getRequiredExtensions() {
-    uint32_t glfwExtensionCount = 0;
-    const char** glfwExtensions =
-        glfwGetRequiredInstanceExtensions(&glfwExtensionCount);
+    Uint32 sdlExtensionCount = 0;
+    const char* const* sdlExtensions =
+        SDL_Vulkan_GetInstanceExtensions(&sdlExtensionCount);
+    if (!sdlExtensions) {
+        throw std::runtime_error(
+            std::format("failed to get SDL Vulkan instance extensions: {}", SDL_GetError())
+        );
+    }
 
-    std::vector extensions(glfwExtensions, glfwExtensions + glfwExtensionCount);
+    std::vector extensions(sdlExtensions, sdlExtensions + sdlExtensionCount);
     if (ENABLE_VALIDATION_LAYERS) {
         extensions.push_back(vk::EXTDebugUtilsExtensionName);
     }

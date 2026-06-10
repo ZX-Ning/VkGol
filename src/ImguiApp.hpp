@@ -14,14 +14,14 @@ struct AppState;
 struct VulkanContext;
 struct Scene;
 struct SwapChain;
-struct GLFWwindow;
+struct SDL_Window;
 namespace vk::raii {
 class CommandBuffer;
 }
 
 struct ImguiApp {
     explicit ImguiApp(WindowApp& window, VulkanContext& context, SwapChain& swapChain);
-    void initForGlfw(GLFWwindow* window);
+    void initForSdl(WindowApp& windowApp);
     static constexpr int FPS_UPDATE_INTERVAL_MS = 200;
     uint64_t lastShowFpsTime;
     float lastframeTime;

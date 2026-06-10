@@ -11,8 +11,6 @@
 #include <vulkan/vulkan_raii.hpp>
 #include <vulkan/vulkan_structs.hpp>
 
-// glfw
-#include <GLFW/glfw3.h>
 #include <vulkan/vulkan_core.h>
 
 // project

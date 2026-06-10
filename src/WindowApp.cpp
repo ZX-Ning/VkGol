@@ -1,98 +1,137 @@
 #include "WindowApp.hpp"
 
-// std c++
-#include <cassert>
+#include <SDL3/SDL_init.h>
+#include <SDL3/SDL_keyboard.h>
+#include <SDL3/SDL_mouse.h>
+#include <SDL3/SDL_vulkan.h>
+
+#include <format>
 #include <functional>
 #include <print>
 #include <stdexcept>
-
-// vulkan
+#include <string>
 #include <tuple>
 #include <vulkan/vulkan_raii.hpp>
 
-// glfw
-#include <GLFW/glfw3.h>
-#include <vulkan/vulkan_core.h>
-
 #include "AppState.hpp"
 
-void WindowApp::updateState(AppState& state) {
-    GLFWwindow* window = this->window.get();
-    state.inputs.mouseState = glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT);
-    double x, y;
-    glfwGetCursorPos(window, &x, &y);
-    state.inputs.lastMousePos = state.inputs.mousePos;
-    state.inputs.mousePos = {(float)x, (float)y};
+void WindowDeleter::operator()(SDL_Window* window) const noexcept {
+    if (window) {
+        SDL_DestroyWindow(window);
+    }
+    SDL_Quit();
+}
 
-    if (state.inputs.mouseState == GLFW_PRESS || !state.showImGui) {
-        glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+void WindowApp::processEvent(const SDL_Event& event) {
+    try {
+        eventCallback(event);
+    }
+    catch (const std::bad_function_call&) {
+    }
+
+    switch (event.type) {
+        case SDL_EVENT_QUIT: {
+            shouldClose = true;
+            break;
+        }
+        case SDL_EVENT_WINDOW_CLOSE_REQUESTED: {
+            if (event.window.windowID == SDL_GetWindowID(window.get())) {
+                shouldClose = true;
+            }
+            break;
+        }
+        case SDL_EVENT_DISPLAY_CONTENT_SCALE_CHANGED:
+        case SDL_EVENT_WINDOW_PIXEL_SIZE_CHANGED:
+        case SDL_EVENT_WINDOW_RESIZED: {
+            getScale();
+            auto size = getFrameSize();
+            try {
+                resizeCallBack(size.width, size.height);
+            }
+            catch (const std::bad_function_call&) {
+            }
+            break;
+        }
+        case SDL_EVENT_KEY_DOWN:
+        case SDL_EVENT_KEY_UP: {
+            if (event.key.windowID == SDL_GetWindowID(window.get())) {
+                try {
+                    keyCallback(event.key.key, event.key.down ? 1 : 0);
+                }
+                catch (const std::bad_function_call&) {
+                }
+            }
+            break;
+        }
+        default: {
+            break;
+        }
+    }
+}
+
+void WindowApp::updateState(AppState& state) {
+    const bool grabMouse =
+        state.inputs.mouseState || !state.showImGui;
+    if (SDL_GetWindowRelativeMouseMode(window.get()) != grabMouse) {
+        SDL_SetWindowRelativeMouseMode(window.get(), grabMouse);
+    }
+
+    float x = 0.f;
+    float y = 0.f;
+    const SDL_MouseButtonFlags buttons = grabMouse
+        ? SDL_GetRelativeMouseState(&x, &y)
+        : SDL_GetMouseState(&x, &y);
+
+    state.inputs.mouseState =
+        (buttons & SDL_BUTTON_MASK(SDL_BUTTON_LEFT)) ? 1 : 0;
+    state.inputs.lastMousePos = state.inputs.mousePos;
+    if (grabMouse) {
+        state.inputs.mousePos += glm::fvec2{x, y};
     }
     else {
-        glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+        state.inputs.mousePos = {x, y};
     }
 
     if (state.quit) {
-        glfwSetCursor(window, NULL);
-        glfwSetWindowShouldClose(window, GLFW_TRUE);
-    }
-}
-
-void WindowApp::resizeCallBackHelper(GLFWwindow* window, int width, int height) {
-    auto windowPtr = glfwGetWindowUserPointer(window);
-    assert(windowPtr != nullptr);
-    WindowApp* self = reinterpret_cast<WindowApp*>(windowPtr);
-    assert(window == self->window.get());
-
-    self->getScale();
-    try {
-        self->resizeCallBack(width, height);
-    }
-    catch (const std::bad_function_call& e) {
-    }
-}
-
-void WindowApp::keyCallbackHelper(GLFWwindow* window, int key, int, int action, int) {
-    auto windowPtr = glfwGetWindowUserPointer(window);
-    assert(windowPtr != nullptr);
-    WindowApp* self = reinterpret_cast<WindowApp*>(windowPtr);
-    assert(window == self->window.get());
-    try {
-        self->keyCallback(key, action);
-    }
-    catch (const std::bad_function_call& e) {
+        shouldClose = true;
+        SDL_SetCursor(nullptr);
     }
 }
 
 WindowApp::WindowApp(
     int width, int height, std::string_view title, AppState& state
 ) : state(state) {
-    glfwInit();
+    if (!SDL_Init(SDL_INIT_VIDEO | SDL_INIT_GAMEPAD)) {
+        throw std::runtime_error(
+            std::format("failed to init SDL: {}", SDL_GetError())
+        );
+    }
 
-    glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-    glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
-    glfwWindowHint(GLFW_SCALE_TO_MONITOR, GLFW_TRUE);
-    glfwWindowHint(GLFW_SCALE_FRAMEBUFFER, GLFW_TRUE);
-
-    window.reset(glfwCreateWindow(
+    window.reset(SDL_CreateWindow(
+        std::string(title).c_str(),
         width,
         height,
-        title.data(),
-        nullptr,
-        nullptr
+        SDL_WINDOW_VULKAN |
+            SDL_WINDOW_RESIZABLE |
+            SDL_WINDOW_HIGH_PIXEL_DENSITY
     ));
-    void* selfPtr = this;
-    glfwSetWindowUserPointer((GLFWwindow*)window.get(), selfPtr);
-    glfwSetFramebufferSizeCallback(window.get(), &resizeCallBackHelper);
-    glfwSetKeyCallback(window.get(), &keyCallbackHelper);
-    handCursor = glfwCreateStandardCursor(GLFW_HAND_CURSOR);
-    glfwSetInputMode(window.get(), GLFW_RAW_MOUSE_MOTION, GLFW_TRUE);
+    if (!window) {
+        std::string error = SDL_GetError();
+        SDL_Quit();
+        throw std::runtime_error(
+            std::format("failed to create SDL window: {}", error)
+        );
+    }
 }
 
 WindowApp::~WindowApp() = default;
 
 void WindowApp::run() {
-    while (!glfwWindowShouldClose(window.get())) {
-        glfwPollEvents();
+    while (!shouldClose) {
+        SDL_Event event;
+        while (SDL_PollEvent(&event)) {
+            processEvent(event);
+        }
         updateState(state);
         drawFrameCallBack();
     }
@@ -100,32 +139,33 @@ void WindowApp::run() {
 }
 
 Size2D<int> WindowApp::getWindowSize() const {
-    int width, height;
-    glfwGetWindowSize(window.get(), &width, &height);
+    int width = 0;
+    int height = 0;
+    SDL_GetWindowSize(window.get(), &width, &height);
     return {width, height};
 };
 
 Size2D<int> WindowApp::getFrameSize() const {
-    int width, height;
-    glfwGetFramebufferSize(window.get(), &width, &height);
+    int width = 0;
+    int height = 0;
+    SDL_GetWindowSizeInPixels(window.get(), &width, &height);
     return {width, height};
 }
 
-GLFWwindow* WindowApp::getWindowPtr() {
+SDL_Window* WindowApp::getWindowPtr() {
     return window.get();
 };
 
 bool WindowApp::isMinimized() const {
-    int iconified = glfwGetWindowAttrib(window.get(), GLFW_ICONIFIED);
-    return iconified;
+    return (SDL_GetWindowFlags(window.get()) & SDL_WINDOW_MINIMIZED) != 0;
 }
 
 vk::raii::SurfaceKHR WindowApp::createSurface(const vk::raii::Instance& instance) {
-    VkSurfaceKHR surface;
-    if (glfwCreateWindowSurface(
-            *instance, window.get(), nullptr, &surface
-        ) != 0) {
-        throw std::runtime_error("failed to create window surface!");
+    VkSurfaceKHR surface = VK_NULL_HANDLE;
+    if (!SDL_Vulkan_CreateSurface(window.get(), *instance, nullptr, &surface)) {
+        throw std::runtime_error(
+            std::format("failed to create window surface: {}", SDL_GetError())
+        );
     }
     return {instance, surface};
 }
@@ -134,9 +174,7 @@ std::tuple<WindowApp::ScalingType, float> WindowApp::getScale() {
     auto winSize = getWindowSize();
     auto fbSize = getFrameSize();
     scalingType = fbSize.height == winSize.height ? WINDOWS_OR_X11 : MAC_OR_WAYLAND;
-    float xscale, yscale;
-    glfwGetWindowContentScale(window.get(), &xscale, &yscale);
-    float scale = xscale / 2 + yscale / 2;
+    float scale = SDL_GetWindowDisplayScale(window.get());
 
     std::println(
         "[Window] Size:{} x {}; Framebuffer Size: {}x{}; scale: {}; Scale method: {}.",
@@ -152,5 +190,10 @@ std::tuple<WindowApp::ScalingType, float> WindowApp::getScale() {
 };
 
 int WindowApp::getKeyState(int key) {
-    return glfwGetKey(window.get(), key);
+    int numKeys = 0;
+    const bool* keys = SDL_GetKeyboardState(&numKeys);
+    if (key < 0 || key >= numKeys) {
+        return 0;
+    }
+    return keys[key] ? 1 : 0;
 }

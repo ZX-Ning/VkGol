@@ -3,9 +3,9 @@ set_policy("build.warning", true)
 set_warnings("all", "extra")
 
 if (is_plat("linux")) then
-    add_requires("glfw", {configs = {wayland = true}})
+    add_requires("sdl3", {configs = {wayland = true}})
 else
-    add_requires("glfw")
+    add_requires("sdl3")
 end
 
 add_requires("glm", "vulkan-hpp", "vulkan-memory-allocator")
@@ -16,8 +16,8 @@ target("learn_vulkan", function()
     set_kind("binary")
     set_languages("c17", "c++23")
     add_files("src/**.cpp")
-    add_packages("glfw", "glm", "vulkan-hpp", "vulkan-memory-allocator")
-    add_deps("imgui_vulkan_glfw", "stb")
+    add_packages("sdl3", "glm", "vulkan-hpp", "vulkan-memory-allocator")
+    add_deps("imgui_vulkan_sdl3", "stb")
 
     add_defines("GLFW_INCLUDE_VULKAN")
     add_defines("VK_NO_PROTOTYPES")

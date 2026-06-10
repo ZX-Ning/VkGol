@@ -4,17 +4,19 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtx/vector_angle.hpp>
 #include <print>
+#include <SDL3/SDL_keycode.h>
+#include <SDL3/SDL_scancode.h>
 
 #include "Consts.hpp"
 #include "ModelLoader.hpp"
 
 static const std::unordered_map<int, glm::vec<3, int8_t>> KEY_MOVE{
-    {GLFW_KEY_W, {0, 0, -1}},
-    {GLFW_KEY_A, {-1, 0, 0}},
-    {GLFW_KEY_S, {0, 0, 1}},
-    {GLFW_KEY_D, {1, 0, 0}},
-    {GLFW_KEY_SPACE, {0, 1, 0}},
-    {GLFW_KEY_LEFT_SHIFT, {0, -1, 0}}
+    {SDL_SCANCODE_W, {0, 0, -1}},
+    {SDL_SCANCODE_A, {-1, 0, 0}},
+    {SDL_SCANCODE_S, {0, 0, 1}},
+    {SDL_SCANCODE_D, {1, 0, 0}},
+    {SDL_SCANCODE_SPACE, {0, 1, 0}},
+    {SDL_SCANCODE_LSHIFT, {0, -1, 0}}
 };
 
 App::App() {
@@ -54,8 +56,8 @@ void App::setupCallback() {
     (*window).drawFrameCallBack = std::bind(&App::onDraw, this);
     (*window).keyCallback = ([this](int key, int action) {
         switch (key) {
-            case GLFW_KEY_ESCAPE: {
-                if (action == GLFW_PRESS) {
+            case SDLK_ESCAPE: {
+                if (action) {
                     this->state->showImGui = !this->state->showImGui;
                 }
                 break;
@@ -86,7 +88,7 @@ void App::onDraw() {
     for (auto& [k, v] : KEY_MOVE) {
         glm::fvec3 right = glm::cross(scene.view.front, scene.view.up);
         glm::fvec3 forward = glm::cross(right, scene.view.up);
-        if (window->getKeyState(k) == GLFW_PRESS) {
+        if (window->getKeyState(k)) {
             glm::fvec3 move = v;
             if (move.x != 0) {  // left-right
                 move = move.x * right;
@@ -99,7 +101,7 @@ void App::onDraw() {
     }
 
     if (!state->showImGui ||
-        (state->inputs.mouseState == GLFW_PRESS && !imgui->wantMouse())) {
+        (state->inputs.mouseState && !imgui->wantMouse())) {
         glm::fvec3 move(state->inputs.lastMousePos - state->inputs.mousePos, 0.f);
         move.y = -move.y;  // flip y
         float moveNorm = glm::length(move);

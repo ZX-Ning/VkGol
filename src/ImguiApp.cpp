@@ -1,6 +1,6 @@
 #include "ImguiApp.hpp"
 
-#include <backends/imgui_impl_glfw.h>
+#include <backends/imgui_impl_sdl3.h>
 #include <backends/imgui_impl_vulkan.h>
 
 #include <vulkan/vulkan_raii.hpp>
@@ -99,7 +99,7 @@ void ImguiApp::initImguiForVk(
 }
 
 ImDrawData* ImguiApp::drawImgui(AppState& state) {
-    ImGui_ImplGlfw_NewFrame();
+    ImGui_ImplSDL3_NewFrame();
     ImGui_ImplVulkan_NewFrame();
     ImGui::NewFrame();
 
@@ -212,19 +212,22 @@ void ImguiApp::renderVk(ImDrawData* drawData, vk::raii::CommandBuffer& cmd) {
 }
 
 ImguiApp::ImguiApp(WindowApp& window, VulkanContext& context, SwapChain& swapChain) {
-    initForGlfw(window.getWindowPtr());
+    initForSdl(window);
     initImguiForVk(window, context, swapChain.surfaceFormat.format, swapChain.images.size());
 }
 
-void ImguiApp::initForGlfw(GLFWwindow* window) {
+void ImguiApp::initForSdl(WindowApp& windowApp) {
     ImGui::CreateContext();
-    if (!ImGui_ImplGlfw_InitForVulkan(window, true)) {
-        throw std::runtime_error("Failed to init IMGUI for GLFW");
+    if (!ImGui_ImplSDL3_InitForVulkan(windowApp.getWindowPtr())) {
+        throw std::runtime_error("Failed to init IMGUI for SDL3");
     }
+    windowApp.eventCallback = [](const SDL_Event& event) {
+        ImGui_ImplSDL3_ProcessEvent(&event);
+    };
 }
 
 ImguiApp::~ImguiApp() {
     ImGui_ImplVulkan_Shutdown();
-    ImGui_ImplGlfw_Shutdown();
+    ImGui_ImplSDL3_Shutdown();
     ImGui::DestroyContext();
 }
