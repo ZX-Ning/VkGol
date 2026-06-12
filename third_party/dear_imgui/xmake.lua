@@ -1,11 +1,11 @@
-add_requires("vulkan-headers", "glfw")
+add_requires("vulkan-headers", "libsdl3", {system = false})
 
 target("imgui_vulkan_sdl3", function () 
     set_kind("object")
     add_includedirs("./", {public= true})
     add_defines("IMGUI_IMPL_VULKAN_NO_PROTOTYPES")
     add_defines("VK_NO_PROTOTYPES")
-    add_packages("vulkan-headers", "sdl3", {public= true})
+    add_packages("vulkan-headers", "libsdl3")
     add_files("./*.cpp")
     add_files("./backends/imgui_impl_vulkan.cpp")
     add_files("./backends/imgui_impl_sdl3.cpp")

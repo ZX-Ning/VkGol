@@ -15,7 +15,8 @@ struct PC {
     float2 uTranslate;
 };
 
-[[vk_push_constant]] ConstantBuffer<PC> pc;
+[[vk_push_constant]]
+ConstantBuffer<PC> pc;
 
 [shader("vertex")]
 VSOutput vsMain(VSInput vIn) {
@@ -26,8 +27,13 @@ VSOutput vsMain(VSInput vIn) {
     return output;
 }
 
-[[vk_binding(0, 0)]]
-Sampler2D sampledTexture;
+// set = 0, binding = 0
+[[vk::binding(0, 0)]]
+Texture2D<float4> _Texture;
+
+// set = 1, binding = 0
+[[vk::binding(0, 1)]]
+SamplerState _Sampler;
 
 float3 sRGBtoLinear(float3 srgb) {
     return pow(srgb, 2.2f);
@@ -35,6 +41,6 @@ float3 sRGBtoLinear(float3 srgb) {
 
 [shader("fragment")]
 float4 fsMain(VSOutput fIn) : SV_Target {
-    float4 color = fIn.color * sampledTexture.Sample(fIn.uv);
+    float4 color = fIn.color * _Texture.Sample(_Sampler, fIn.uv);
     return float4(sRGBtoLinear(color.rgb), color.w);
 }
