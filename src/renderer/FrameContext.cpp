@@ -12,13 +12,13 @@
 FrameContext::FrameContext(
     const VulkanContext& ctx,
     vk::raii::CommandBuffer&& commandBuffer,
-    vk::raii::DescriptorSet&& sceneDescriptorSet,
+    vk::raii::DescriptorSet&& sceneSet,
     Size2D<uint32_t> size
 )
     : cmdBuffer(std::move(commandBuffer)),
       presentComplete(ctx.device, vk::SemaphoreCreateInfo{}),
       fences(ctx.device, vk::FenceCreateInfo{.flags = vk::FenceCreateFlagBits::eSignaled}),
-      sceneDescriptorSet(std::move(sceneDescriptorSet)) {
+      sceneDescriptorSet(std::move(sceneSet)) {
     sceneUniformBuf = BufferFactory::createDynamicBuffer(
         BufferFactory::Type::Uniform,
         *ctx.allocator,
@@ -33,7 +33,7 @@ FrameContext::FrameContext(
     };
     std::array descriptorWrites{
         vk::WriteDescriptorSet{
-            .dstSet = sceneDescriptorSet,
+            .dstSet = *sceneDescriptorSet,
             .dstBinding = 0,
             .dstArrayElement = 0,
             .descriptorCount = 1,

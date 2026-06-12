@@ -95,7 +95,8 @@ void SwapChain::init(const VulkanContext& context, Size2D<uint32_t> size) {
     for (auto& image : swapChainImages) {
         imageViewCreateInfo.image = image;
         this->images.emplace_back(
-            std::move(image),
+            // vk::Image is a non-owning handle; copy it instead of moving.
+            image,
             vk::raii::ImageView{context.device, imageViewCreateInfo},
             vk::raii::Semaphore{context.device, vk::SemaphoreCreateInfo{}}
         );
