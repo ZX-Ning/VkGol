@@ -5,10 +5,9 @@
 #include <memory>
 #include <vulkan/vulkan_raii.hpp>
 
-#include "Buffer.hpp"
+#include "../core/Buffer.hpp"
 
 struct Pipeline;
-struct VulkanContext;
 struct Texture;
 
 struct Mesh {

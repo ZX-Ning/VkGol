@@ -17,7 +17,6 @@
 #include "../AppState.hpp"
 #include "../ImguiApp.hpp"
 #include "../core/Buffer.hpp"
-#include "../core/Model.hpp"
 #include "../utils.hpp"
 #include "ForwardPass.hpp"
 #include "ForwardRenderLayout.hpp"
@@ -41,6 +40,7 @@ private:
     ForwardPass forwardPass;
     std::vector<FrameContext> frames;
     uint32_t frameIndex = 0;
+    void recreateSwapChainResources(Size2D<uint32_t> size);
 
 public:
     bool framebufferResized = false;

@@ -5,11 +5,11 @@
 
 #include "AppState.hpp"
 #include "WindowApp.hpp"
-#include "core/Model.hpp"
 #include "core/Swapchain.hpp"
 #include "core/Texture.hpp"
 #include "core/VulkanContext.hpp"
 #include "renderer/ForwardRenderLayout.hpp"
+#include "renderer/Model.hpp"
 #include "renderer/RenderApp.hpp"
 #include "renderer/Scene.hpp"
 

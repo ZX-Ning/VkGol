@@ -2,8 +2,8 @@
 
 #include "../AppState.hpp"
 #include "../core/Buffer.hpp"
-#include "../core/Model.hpp"
 #include "ForwardShaderData.hpp"
+#include "Model.hpp"
 
 glm::fmat4x4 RenderObject::calcModelMatrix() const {
     glm::mat4 t = glm::translate(glm::mat4(1.0f), position);

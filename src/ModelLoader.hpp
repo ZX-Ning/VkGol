@@ -1,8 +1,8 @@
 #ifndef MODELLOADER_HPP
 #define MODELLOADER_HPP
 
-#include "core/Model.hpp"
 #include "core/VulkanContext.hpp"
+#include "renderer/Model.hpp"
 
 struct ForwardRenderLayout;
 

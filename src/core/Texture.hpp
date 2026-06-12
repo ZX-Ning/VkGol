@@ -58,6 +58,15 @@ public:
 };
 
 std::shared_ptr<Texture> createDefaultTexture(const VulkanContext& context, const vk::Extent3D& extent);
+std::unique_ptr<Texture> createTexture(
+    const VulkanContext& context,
+    const vk::Extent3D& extent,
+    vk::Format format,
+    vk::ImageUsageFlags usage,
+    vk::ImageAspectFlags aspectMask = vk::ImageAspectFlagBits::eColor,
+    bool createSampler = true
+);
 std::unique_ptr<Texture> createDepthTexture(const VulkanContext& context, const vk::Extent3D& extent);
+std::unique_ptr<Texture> createPingPongTexture(const VulkanContext& context, const vk::Extent3D& extent);
 
 #endif  // TEXTURE_HPP

@@ -4,13 +4,13 @@
 #include <vulkan/vulkan.hpp>
 
 #include "ImageLoader.hpp"
-#include "core/Model.hpp"
 #include "core/RenderPipeline.hpp"
 #include "core/Texture.hpp"
 #include "core/vertex.hpp"
 #include "Consts.hpp"
 #include "CubeMesh.hpp"
 #include "renderer/ForwardRenderLayout.hpp"
+#include "renderer/Model.hpp"
 
 namespace {
 Mesh createMesh(VulkanContext& context) {

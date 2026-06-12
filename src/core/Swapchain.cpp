@@ -5,6 +5,7 @@
 
 #include "Texture.hpp"
 #include "VulkanContext.hpp"
+#include "VulkanUtils.hpp"
 
 namespace {
 vk::Extent2D chooseSwapExtent(
@@ -45,6 +46,7 @@ vk::PresentModeKHR chooseSwapPresentMode(
     return vk::PresentModeKHR::eFifo;
     // return vk::PresentModeKHR::eImmediate;
 }
+
 }  // namespace
 
 void SwapChain::init(const VulkanContext& context, Size2D<uint32_t> size) {
@@ -95,8 +97,7 @@ void SwapChain::init(const VulkanContext& context, Size2D<uint32_t> size) {
         this->images.emplace_back(
             std::move(image),
             vk::raii::ImageView{context.device, imageViewCreateInfo},
-            vk::raii::Semaphore{context.device, vk::SemaphoreCreateInfo{}},
-            createDepthTexture(context, {size.width, size.height, 1})
+            vk::raii::Semaphore{context.device, vk::SemaphoreCreateInfo{}}
         );
     }
 };
@@ -130,4 +131,32 @@ uint32_t SwapChain::acquireNextImage(vk::raii::Semaphore& semaphore) {
         throw std::runtime_error("failed to acquire swap chain image!");
     }
     return imageIndex;
+}
+
+void SurfaceImage::transitionToColorAttachment(vk::raii::CommandBuffer& cmd) {
+    transitionImageLayout(
+        cmd,
+        this->image,
+        vk::ImageLayout::eUndefined,
+        vk::ImageLayout::eColorAttachmentOptimal,
+        vk::PipelineStageFlagBits2::eTopOfPipe,
+        {},
+        vk::PipelineStageFlagBits2::eColorAttachmentOutput,
+        vk::AccessFlagBits2::eColorAttachmentWrite,
+        vk::ImageAspectFlagBits::eColor
+    );
+}
+
+void SurfaceImage::transitionToPresent(vk::raii::CommandBuffer& cmd) {
+    transitionImageLayout(
+        cmd,
+        this->image,
+        vk::ImageLayout::eColorAttachmentOptimal,
+        vk::ImageLayout::ePresentSrcKHR,
+        vk::PipelineStageFlagBits2::eColorAttachmentOutput,
+        vk::AccessFlagBits2::eColorAttachmentWrite,
+        vk::PipelineStageFlagBits2::eBottomOfPipe,
+        {},
+        vk::ImageAspectFlagBits::eColor
+    );
 }

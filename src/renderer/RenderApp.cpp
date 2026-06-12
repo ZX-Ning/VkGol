@@ -37,9 +37,18 @@ void RenderApp::init() {
     frames = FrameContext::createFrameInFlights(
         context,
         MAX_FRAMES_IN_FLIGHT,
+        {swapChain.extent.width, swapChain.extent.height},
         *layout.sceneSetLayout
     );
     state.lastRenderTimestamp = getTimestampMs();
+}
+
+void RenderApp::recreateSwapChainResources(Size2D<uint32_t> size) {
+    swapChain.recreate(context, size);
+    Size2D<uint32_t> targetSize{swapChain.extent.width, swapChain.extent.height};
+    for (auto& frame : frames) {
+        frame.recreateTextures(context, targetSize);
+    }
 }
 
 void RenderApp::drawFrame() {
@@ -65,7 +74,7 @@ void RenderApp::drawFrame() {
         imageIndex = swapChain.acquireNextImage(currentFrame.presentComplete);
     }
     catch (SwapChain::SwapChainOutOfDateError&) {
-        swapChain.recreate(context, size);
+        recreateSwapChainResources(size);
         return;
     }
     currentFrame.reset(context.device);
@@ -73,20 +82,26 @@ void RenderApp::drawFrame() {
     auto& currentImage = swapChain.images[imageIndex];
     auto& currentCmdBuffer = currentFrame.cmdBuffer;
     currentCmdBuffer.reset();
+
     currentCmdBuffer.begin({});
-    forwardPass.record(
-        ForwardPassContext{
-            .context = context,
-            .layout = layout,
-            .frame = currentFrame,
-            .target = currentImage,
-            .extent = swapChain.extent,
-            .windowSize = size,
-            .state = state,
-            .imgui = imgui
-        }
-    );
-    currentCmdBuffer.end();
+    {
+        currentImage.transitionToColorAttachment(currentCmdBuffer);
+        currentFrame.transitionDepthToAttachment(currentCmdBuffer);
+        forwardPass.record(
+            ForwardPassContext{
+                .context = context,
+                .layout = layout,
+                .frame = currentFrame,
+                .target = currentImage,
+                .extent = swapChain.extent,
+                .windowSize = size,
+                .state = state,
+                .imgui = imgui
+            }
+        );
+        currentImage.transitionToPresent(currentCmdBuffer);
+        currentCmdBuffer.end();
+    }
 
     vk::PipelineStageFlags waitDestinationStageMask(
         vk::PipelineStageFlagBits::eColorAttachmentOutput
@@ -113,7 +128,7 @@ void RenderApp::drawFrame() {
         auto result = context.queue.presentKHR(presentInfoKHR);
         if (result == vk::Result::eSuboptimalKHR || framebufferResized) {
             framebufferResized = false;
-            swapChain.recreate(context, size);
+            recreateSwapChainResources(size);
         }
         else if (result != vk::Result::eSuccess) {
             throw std::runtime_error("failed to present swap chain image!");
@@ -121,7 +136,7 @@ void RenderApp::drawFrame() {
     }
     catch (const vk::SystemError& e) {
         if (e.code().value() == static_cast<int>(vk::Result::eErrorOutOfDateKHR)) {
-            swapChain.recreate(context, size);
+            recreateSwapChainResources(size);
             return;
         }
         else {

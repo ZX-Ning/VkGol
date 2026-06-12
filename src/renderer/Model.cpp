@@ -1,8 +1,8 @@
 #include "Model.hpp"
 
-#include "RenderPipeline.hpp"
+#include "../core/RenderPipeline.hpp"
 
-void Model::bind(const vk::raii::PipelineLayout& layout,vk::raii::CommandBuffer& cmd) {
+void Model::bind(const vk::raii::PipelineLayout& layout, vk::raii::CommandBuffer& cmd) {
     Pipeline& pipeline = *material.pipeline;
     cmd.bindPipeline(
         vk::PipelineBindPoint::eGraphics,

@@ -12,7 +12,9 @@ struct SurfaceImage {
     vk::Image image;
     vk::raii::ImageView imageView{nullptr};
     vk::raii::Semaphore imageAcquired{nullptr};
-    std::unique_ptr<Texture> depthTexture;
+
+    void transitionToColorAttachment(vk::raii::CommandBuffer& cmd);
+    void transitionToPresent(vk::raii::CommandBuffer& cmd);
 };
 
 struct SwapChain {

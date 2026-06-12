@@ -179,8 +179,14 @@ std::shared_ptr<Texture> createDefaultTexture(
     );
 }
 
-std::unique_ptr<Texture> createDepthTexture(const VulkanContext& context, const vk::Extent3D& extent) {
-    auto format = vk::Format::eD32Sfloat;
+std::unique_ptr<Texture> createTexture(
+    const VulkanContext& context,
+    const vk::Extent3D& extent,
+    vk::Format format,
+    vk::ImageUsageFlags usage,
+    vk::ImageAspectFlags aspectMask,
+    bool createSampler
+) {
     vk::ImageCreateInfo imageInfo{
         .imageType = vk::ImageType::e2D,
         .format = format,
@@ -189,7 +195,7 @@ std::unique_ptr<Texture> createDepthTexture(const VulkanContext& context, const 
         .arrayLayers = 1,
         .samples = vk::SampleCountFlagBits::e1,
         .tiling = vk::ImageTiling::eOptimal,
-        .usage = vk::ImageUsageFlagBits::eDepthStencilAttachment,
+        .usage = usage,
         .sharingMode = vk::SharingMode::eExclusive
     };
 
@@ -197,7 +203,7 @@ std::unique_ptr<Texture> createDepthTexture(const VulkanContext& context, const 
         .viewType = vk::ImageViewType::e2D,
         .format = format,
         .subresourceRange = {
-            vk::ImageAspectFlagBits::eDepth,
+            aspectMask,
             0,
             1,
             0,
@@ -205,10 +211,45 @@ std::unique_ptr<Texture> createDepthTexture(const VulkanContext& context, const 
         }
     };
 
+    vk::SamplerCreateInfo samplerInfo{
+        .magFilter = vk::Filter::eLinear,
+        .minFilter = vk::Filter::eLinear,
+        .mipmapMode = vk::SamplerMipmapMode::eLinear,
+        .addressModeU = vk::SamplerAddressMode::eClampToEdge,
+        .addressModeV = vk::SamplerAddressMode::eClampToEdge,
+        .addressModeW = vk::SamplerAddressMode::eClampToEdge,
+        .mipLodBias = 0.0f,
+        .anisotropyEnable = vk::False,
+        .compareEnable = vk::False,
+        .compareOp = vk::CompareOp::eAlways
+    };
+
     return std::make_unique<Texture>(
         context,
         imageInfo,
         viewInfo,
-        nullptr
+        createSampler ? &samplerInfo : nullptr
+    );
+}
+
+std::unique_ptr<Texture> createDepthTexture(const VulkanContext& context, const vk::Extent3D& extent) {
+    return createTexture(
+        context,
+        extent,
+        vk::Format::eD32Sfloat,
+        vk::ImageUsageFlagBits::eDepthStencilAttachment,
+        vk::ImageAspectFlagBits::eDepth,
+        false
+    );
+}
+
+std::unique_ptr<Texture> createPingPongTexture(const VulkanContext& context, const vk::Extent3D& extent) {
+    return createTexture(
+        context,
+        extent,
+        vk::Format::eR16G16B16A16Sfloat,
+        vk::ImageUsageFlagBits::eColorAttachment |
+            vk::ImageUsageFlagBits::eSampled |
+            vk::ImageUsageFlagBits::eStorage
     );
 }

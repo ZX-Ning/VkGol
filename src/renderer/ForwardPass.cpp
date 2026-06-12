@@ -2,12 +2,11 @@
 
 #include "../AppState.hpp"
 #include "../ImguiApp.hpp"
-#include "../core/ImageUtils.hpp"
 #include "../core/Swapchain.hpp"
 #include "../core/Texture.hpp"
 #include "../core/VulkanContext.hpp"
-#include "FrameContext.hpp"
 #include "ForwardRenderLayout.hpp"
+#include "FrameContext.hpp"
 #include "Scene.hpp"
 
 namespace {
@@ -29,31 +28,6 @@ vk::Viewport makeViewport(vk::Extent2D extent) {
 
 void ForwardPass::record(const ForwardPassContext& ctx) {
     auto& cmd = ctx.frame.cmdBuffer;
-
-    transitionImageLayout(
-        cmd,
-        ctx.target.image,
-        vk::ImageLayout::eUndefined,
-        vk::ImageLayout::eColorAttachmentOptimal,
-        vk::PipelineStageFlagBits2::eTopOfPipe,
-        {},
-        vk::PipelineStageFlagBits2::eColorAttachmentOutput,
-        vk::AccessFlagBits2::eColorAttachmentWrite,
-        vk::ImageAspectFlagBits::eColor
-    );
-    transitionImageLayout(
-        cmd,
-        ctx.target.depthTexture->image,
-        vk::ImageLayout::eUndefined,
-        vk::ImageLayout::eDepthStencilAttachmentOptimal,
-        vk::PipelineStageFlagBits2::eTopOfPipe,
-        {},
-        vk::PipelineStageFlagBits2::eEarlyFragmentTests |
-            vk::PipelineStageFlagBits2::eLateFragmentTests,
-        vk::AccessFlagBits2::eDepthStencilAttachmentWrite,
-        vk::ImageAspectFlagBits::eDepth
-    );
-
     vk::RenderingAttachmentInfo colorAttachmentInfo{
         .imageView = ctx.target.imageView,
         .imageLayout = vk::ImageLayout::eColorAttachmentOptimal,
@@ -64,7 +38,7 @@ void ForwardPass::record(const ForwardPassContext& ctx) {
         }
     };
     vk::RenderingAttachmentInfo depthAttachmentInfo{
-        .imageView = ctx.target.depthTexture->view,
+        .imageView = ctx.frame.depthTexture->view,
         .imageLayout = vk::ImageLayout::eDepthAttachmentOptimal,
         .loadOp = vk::AttachmentLoadOp::eClear,
         .storeOp = vk::AttachmentStoreOp::eDontCare,
@@ -109,16 +83,4 @@ void ForwardPass::record(const ForwardPassContext& ctx) {
     }
     ctx.imgui.renderVk(ctx.imgui.drawImgui(ctx.state), cmd);
     cmd.endRendering();
-
-    transitionImageLayout(
-        cmd,
-        ctx.target.image,
-        vk::ImageLayout::eColorAttachmentOptimal,
-        vk::ImageLayout::ePresentSrcKHR,
-        vk::PipelineStageFlagBits2::eColorAttachmentOutput,
-        vk::AccessFlagBits2::eColorAttachmentWrite,
-        vk::PipelineStageFlagBits2::eBottomOfPipe,
-        {},
-        vk::ImageAspectFlagBits::eColor
-    );
 }
