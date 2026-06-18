@@ -170,7 +170,7 @@ std::shared_ptr<Texture> createDefaultTexture(
         .compareEnable = vk::False,
         .compareOp = vk::CompareOp::eAlways
     };
-
+    
     return std::make_shared<Texture>(
         context,
         imageInfo,

@@ -10,5 +10,7 @@ int main() {
     catch (const std::exception& e) {
         std::println(stderr, "Error: {}", e.what());
     }
+    std::println("Done.");
+
     return 0;
 }
