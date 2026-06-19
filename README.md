@@ -1,4 +1,6 @@
-Simple Vulkan render for learning Computer Graphics, GPU programming, and Vulkan. (WIP)
+Personal Vulkan codebase for learning Computer Graphics, GPGPU programming, and Vulkan.
+
+Compute branch: For General-Purpose compute testing.
 
 ## AI Disclosure
 
