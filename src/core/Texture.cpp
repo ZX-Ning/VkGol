@@ -185,7 +185,8 @@ std::unique_ptr<Texture> createTexture(
     vk::Format format,
     vk::ImageUsageFlags usage,
     vk::ImageAspectFlags aspectMask,
-    bool createSampler
+    bool createSampler,
+    vk::Filter filter
 ) {
     vk::ImageCreateInfo imageInfo{
         .imageType = vk::ImageType::e2D,
@@ -212,9 +213,11 @@ std::unique_ptr<Texture> createTexture(
     };
 
     vk::SamplerCreateInfo samplerInfo{
-        .magFilter = vk::Filter::eLinear,
-        .minFilter = vk::Filter::eLinear,
-        .mipmapMode = vk::SamplerMipmapMode::eLinear,
+        .magFilter = filter,
+        .minFilter = filter,
+        .mipmapMode = filter == vk::Filter::eNearest
+            ? vk::SamplerMipmapMode::eNearest
+            : vk::SamplerMipmapMode::eLinear,
         .addressModeU = vk::SamplerAddressMode::eClampToEdge,
         .addressModeV = vk::SamplerAddressMode::eClampToEdge,
         .addressModeW = vk::SamplerAddressMode::eClampToEdge,
@@ -229,6 +232,24 @@ std::unique_ptr<Texture> createTexture(
         imageInfo,
         viewInfo,
         createSampler ? &samplerInfo : nullptr
+    );
+}
+
+std::unique_ptr<Texture> createNearestTexture(
+    const VulkanContext& context,
+    const vk::Extent3D& extent,
+    vk::Format format,
+    vk::ImageUsageFlags usage,
+    vk::ImageAspectFlags aspectMask
+) {
+    return createTexture(
+        context,
+        extent,
+        format,
+        usage,
+        aspectMask,
+        true,
+        vk::Filter::eNearest
     );
 }
 

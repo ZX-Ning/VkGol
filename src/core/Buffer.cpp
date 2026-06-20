@@ -27,6 +27,10 @@ vk::Buffer LoadedBuffer::getVkBuffer() const {
     return buffer;
 }
 
+size_t LoadedBuffer::size() const {
+    return this->resultInfo.size;
+}
+
 LoadedBuffer::~LoadedBuffer() {
     if (buffer != VK_NULL_HANDLE) {
         vmaDestroyBuffer(allocator, buffer, allocation);
@@ -47,7 +51,7 @@ uint8_t* DynamicBuffer::getMappedPtr() {
     return (uint8_t*)this->resultInfo.pMappedData;
 }
 
-void StaticBuffer::readBackSyncDangerous(VulkanContext& ctx, uint8_t* dst) {
+void StaticBuffer::readBackSyncDangerous(const VulkanContext& ctx, uint8_t* dst) {
     size_t stagingSize = std::min(resultInfo.size, MAX_STAGGING_SIZE);
     staging = BufferFactory::createStagingBuffer(allocator, stagingSize);
     for (size_t offset = 0; offset < resultInfo.size; offset += MAX_STAGGING_SIZE) {
@@ -91,7 +95,7 @@ void StaticBuffer::load(
     copyBuffer(staging->getVkBuffer(), this->buffer, cmd, size);
 }
 
-void StaticBuffer::loadSync(std::span<const uint8_t> data, VulkanContext& ctx) {
+void StaticBuffer::loadSync(std::span<const uint8_t> data, const VulkanContext& ctx) {
     size_t stagingSize = std::min(resultInfo.size, MAX_STAGGING_SIZE);
     staging = BufferFactory::createStagingBuffer(allocator, stagingSize);
     for (size_t offset = 0; offset < data.size_bytes(); offset += MAX_STAGGING_SIZE) {
@@ -171,6 +175,14 @@ std::shared_ptr<StaticBuffer> BufferFactory::createStaticBuffer(
             allocInfo.requiredFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
             break;
         }
+        case Type::Storage: {
+            bufferInfo.usage =
+                vk::BufferUsageFlagBits::eStorageBuffer |
+                vk::BufferUsageFlagBits::eTransferDst |
+                vk::BufferUsageFlagBits::eTransferSrc;
+            allocInfo.requiredFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+            break;
+        }
         default: {
             throw std::runtime_error("Not implement yet");
             break;
@@ -189,7 +201,7 @@ std::shared_ptr<DynamicBuffer> BufferFactory::createDynamicBuffer(
     };
     VmaAllocationCreateInfo allocInfo = {
         .flags =
-            VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT |
+            VMA_ALLOCATION_CREATE_HOST_ACCESS_RANDOM_BIT |
             VMA_ALLOCATION_CREATE_MAPPED_BIT,
         .usage = VMA_MEMORY_USAGE_AUTO,
         .requiredFlags = VK_MEMORY_PROPERTY_HOST_COHERENT_BIT

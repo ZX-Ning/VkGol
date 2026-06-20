@@ -30,10 +30,10 @@ using Ref = std::reference_wrapper<T>;
 template <typename T>
 using OptRef = std::optional<Ref<T>>;
 
-inline std::vector<uint8_t> readFile(const std::string& filePath) {
-    std::ifstream file(filePath, std::ios::binary);
+inline std::vector<uint8_t> readFile(std::string_view filePath) {
+    std::ifstream file(filePath.data(), std::ios::binary);
     if (!file.is_open()) {
-        throw std::runtime_error("failed to open file!");
+        throw std::runtime_error(std::format("failed to open file {}", filePath));
     }
     size_t fileSize = std::filesystem::file_size(filePath);
     std::vector<uint8_t> buffer(fileSize);

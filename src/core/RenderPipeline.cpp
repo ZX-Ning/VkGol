@@ -52,7 +52,7 @@ std::shared_ptr<Pipeline> createGraphicsPipeline(
         .depthClampEnable = vk::False,
         .rasterizerDiscardEnable = vk::False,
         .polygonMode = vk::PolygonMode::eFill,
-        .cullMode = vk::CullModeFlagBits::eBack,
+        .cullMode = vk::CullModeFlagBits::eNone,
         .frontFace = vk::FrontFace::eCounterClockwise,
         .depthBiasEnable = vk::False,
         .depthBiasSlopeFactor = 1.0f,
@@ -80,13 +80,13 @@ std::shared_ptr<Pipeline> createGraphicsPipeline(
         .pAttachments = &colorBlendAttachment
     };
 
-    vk::PipelineDepthStencilStateCreateInfo depthStencil{
-        .depthTestEnable = vk::True,
-        .depthWriteEnable = vk::True,
-        .depthCompareOp = vk::CompareOp::eLess,
-        .depthBoundsTestEnable = vk::False,
-        .stencilTestEnable = vk::False
-    };
+    // vk::PipelineDepthStencilStateCreateInfo depthStencil{
+    //     .depthTestEnable = vk::True,
+    //     .depthWriteEnable = vk::True,
+    //     .depthCompareOp = vk::CompareOp::eLess,
+    //     .depthBoundsTestEnable = vk::False,
+    //     .stencilTestEnable = vk::False
+    // };
 
     std::vector dynamicStates = {vk::DynamicState::eViewport, vk::DynamicState::eScissor};
     vk::PipelineDynamicStateCreateInfo dynamicState{
@@ -102,7 +102,7 @@ std::shared_ptr<Pipeline> createGraphicsPipeline(
             .pViewportState = &viewportState,
             .pRasterizationState = &rasterizer,
             .pMultisampleState = &multisampling,
-            .pDepthStencilState = &depthStencil,
+            // .pDepthStencilState = &depthStencil,
             .pColorBlendState = &colorBlending,
             .pDynamicState = &dynamicState,
             .layout = desc.layout,
@@ -111,7 +111,7 @@ std::shared_ptr<Pipeline> createGraphicsPipeline(
         vk::PipelineRenderingCreateInfo{
             .colorAttachmentCount = 1,
             .pColorAttachmentFormats = &desc.colorFormat,
-            .depthAttachmentFormat = desc.depthFormat
+            // .depthAttachmentFormat = desc.depthFormat
         }
     };
     return std::make_unique<Pipeline>(vk::raii::Pipeline{
@@ -119,4 +119,23 @@ std::shared_ptr<Pipeline> createGraphicsPipeline(
         nullptr,
         pipelineCreateInfoChain.get<vk::GraphicsPipelineCreateInfo>()
     });
+}
+
+std::shared_ptr<Pipeline> createComputePipeline(
+    const VulkanContext& context,
+    const ComputePipelineDesc& desc
+) {
+    vk::raii::ShaderModule shaderModule =
+        createShaderModule(context.device, desc.shaderSpv);
+    vk::ComputePipelineCreateInfo compPipeInfo = {
+        .stage = vk::PipelineShaderStageCreateInfo{
+            .stage = vk::ShaderStageFlagBits::eCompute,
+            .module = shaderModule,
+            .pName = "main"
+        },
+        .layout = desc.layout
+    };
+    return std::make_unique<Pipeline>(
+        context.device.createComputePipeline(nullptr, compPipeInfo)
+    );
 }

@@ -34,6 +34,7 @@ protected:
 
 public:
     vk::Buffer getVkBuffer() const;
+    size_t size() const;
     LoadedBuffer() = delete;
     // rule of 5:
     virtual ~LoadedBuffer();
@@ -58,7 +59,7 @@ public:
 struct StaticBuffer : public LoadedBuffer {
 private:
     std::unique_ptr<DynamicBuffer> staging;
-    void readBackSyncDangerous(VulkanContext& ctx, uint8_t* dst);
+    void readBackSyncDangerous(const VulkanContext& ctx, uint8_t* dst);
     // size_t size;
 
 public:
@@ -69,10 +70,10 @@ public:
     );
     static void copyBuffer(vk::Buffer src, vk::Buffer dst, vk::raii::CommandBuffer& cmd, vk::DeviceSize size);
     void load(std::span<const uint8_t> data, vk::raii::CommandBuffer& cmd);
-    void loadSync(std::span<const uint8_t> data, VulkanContext& ctx);
+    void loadSync(std::span<const uint8_t> data, const VulkanContext& ctx);
     std::span<uint8_t> readBackToMapped(vk::raii::CommandBuffer& cmd);
     template <class T>
-    std::vector<T> readBackSync(VulkanContext& ctx);
+    std::vector<T> readBackSync(const VulkanContext& ctx);
     void deleteStaging();
 };
 
@@ -80,7 +81,8 @@ struct BufferFactory {
     enum class Type {
         Vertex,
         Index,
-        Uniform
+        Uniform,
+        Storage
     };
     static std::shared_ptr<StaticBuffer> createStaticBuffer(Type type, const VmaAllocator& allocator, size_t size);
     static std::shared_ptr<DynamicBuffer> createDynamicBuffer(Type type, const VmaAllocator& allocator, size_t size);
@@ -88,7 +90,7 @@ struct BufferFactory {
 };
 
 template <class T>
-inline std::vector<T> StaticBuffer::readBackSync(VulkanContext& ctx) {
+inline std::vector<T> StaticBuffer::readBackSync(const VulkanContext& ctx) {
     assert(this->resultInfo.size % sizeof(T) == 0);
     std::vector<T> result(this->resultInfo.size / sizeof(T));
     readBackSyncDangerous(ctx, reinterpret_cast<uint8_t*>(result.data()));

@@ -64,7 +64,15 @@ std::unique_ptr<Texture> createTexture(
     vk::Format format,
     vk::ImageUsageFlags usage,
     vk::ImageAspectFlags aspectMask = vk::ImageAspectFlagBits::eColor,
-    bool createSampler = true
+    bool createSampler = true,
+    vk::Filter filter = vk::Filter::eLinear
+);
+std::unique_ptr<Texture> createNearestTexture(
+    const VulkanContext& context,
+    const vk::Extent3D& extent,
+    vk::Format format,
+    vk::ImageUsageFlags usage,
+    vk::ImageAspectFlags aspectMask = vk::ImageAspectFlagBits::eColor
 );
 std::unique_ptr<Texture> createDepthTexture(const VulkanContext& context, const vk::Extent3D& extent);
 std::unique_ptr<Texture> createPingPongTexture(const VulkanContext& context, const vk::Extent3D& extent);

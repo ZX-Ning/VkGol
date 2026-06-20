@@ -1,61 +1,66 @@
 #ifndef RENDER_HPP
 #define RENDER_HPP
 
-// c++ std libs
 #include <cstdint>
 #include <memory>
 #include <vector>
 
-// vulkan-hpp headers
-#include <vulkan/vulkan_core.h>
-
-#include <vulkan/vulkan.hpp>
 #include <vulkan/vulkan_raii.hpp>
-#include <vulkan/vulkan_structs.hpp>
 
-// project
-#include "../AppState.hpp"
-#include "../ImguiApp.hpp"
-#include "../core/Buffer.hpp"
 #include "../utils.hpp"
-#include "ForwardPass.hpp"
-#include "ForwardRenderLayout.hpp"
 #include "FrameContext.hpp"
 
-// forward declaration
-struct WindowApp;
-struct VulkanContext;
+struct AppState;
+struct GOLPass;
+struct ImguiApp;
+struct Pipeline;
+struct StaticBuffer;
+struct SurfaceImage;
 struct SwapChain;
-struct Scene;
-////////////////////////
+struct VulkanContext;
+struct WindowApp;
 
 struct RenderApp {
 private:
     AppState& state;
     VulkanContext& context;
-    ForwardRenderLayout& layout;
     WindowApp& windowApp;
     SwapChain& swapChain;
     ImguiApp& imgui;
-    ForwardPass forwardPass;
+
+    std::unique_ptr<GOLPass> golPass;
+    vk::raii::DescriptorSetLayout textureSetLayout{nullptr};
+    vk::raii::PipelineLayout pipelineLayout{nullptr};
+    vk::raii::DescriptorSet textureSet{nullptr};
+    std::shared_ptr<Pipeline> renderPipeline;
+    std::shared_ptr<StaticBuffer> quadVertexBuffer;
+
     std::vector<FrameContext> frames;
     uint32_t frameIndex = 0;
+
+    void init();
     void recreateSwapChainResources(Size2D<uint32_t> size);
+    void record(
+        vk::raii::CommandBuffer& cmd,
+        SurfaceImage& target,
+        vk::Extent2D extent
+    );
 
 public:
     bool framebufferResized = false;
+
     RenderApp(
         AppState& state,
         VulkanContext& context,
-        ForwardRenderLayout& layout,
         WindowApp& windowApp,
         SwapChain& swapChain,
         ImguiApp& imgui
     );
     ~RenderApp();
-    void init();
+
     void run();
     void drawFrame();
+
     DISABLE_COPY(RenderApp)
 };
 

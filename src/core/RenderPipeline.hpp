@@ -25,4 +25,14 @@ std::shared_ptr<Pipeline> createGraphicsPipeline(
     const GraphicsPipelineDesc& desc
 );
 
+struct ComputePipelineDesc {
+    vk::PipelineLayout layout;
+    std::span<const uint8_t> shaderSpv;
+};
+
+std::shared_ptr<Pipeline> createComputePipeline(
+    const VulkanContext& context,
+    const ComputePipelineDesc& desc
+);
+
 #endif  // RENDERPIPELINE_HPP

@@ -223,11 +223,14 @@ vk::raii::PhysicalDevice pickPhysicalDevice(vk::raii::Instance& instance) {
         auto features = device.getFeatures2<
             vk::PhysicalDeviceFeatures2,
             vk::PhysicalDeviceVulkan11Features,
+            vk::PhysicalDeviceVulkan12Features,
             vk::PhysicalDeviceVulkan13Features,
             vk::PhysicalDeviceExtendedDynamicStateFeaturesEXT>();
 
         bool supportsRequiredFeatures =
             features.get<vk::PhysicalDeviceVulkan11Features>().shaderDrawParameters &&
+            features.get<vk::PhysicalDeviceVulkan12Features>().uniformAndStorageBuffer8BitAccess &&
+            features.get<vk::PhysicalDeviceVulkan12Features>().shaderInt8 &&
             features.get<vk::PhysicalDeviceVulkan13Features>().synchronization2 &&
             features.get<vk::PhysicalDeviceVulkan13Features>().dynamicRendering &&
             features.get<vk::PhysicalDeviceExtendedDynamicStateFeaturesEXT>().extendedDynamicState;
@@ -239,14 +242,15 @@ vk::raii::PhysicalDevice pickPhysicalDevice(vk::raii::Instance& instance) {
     }
     for (vk::raii::PhysicalDevice& device : devicesFiltered) {
         auto props = device.getProperties();
-        if (props.deviceType == vk::PhysicalDeviceType::eDiscreteGpu) {
+        if (props.deviceType == vk::PhysicalDeviceType::eIntegratedGpu) {
             std::println("Device: {}", props.deviceName.data());
             return device;
         }
     }
-    if (!devices.empty()) {
-        std::println("Device: {}", devices[0].getProperties().deviceName.data());
-        return devices[0];
+    if (!devicesFiltered.empty()) {
+        vk::raii::PhysicalDevice& device = devicesFiltered[0];
+        std::println("Device: {}", device.getProperties().deviceName.data());
+        return device;
     }
     throw std::runtime_error("failed to find a suitable GPU!");
 }
@@ -327,6 +331,10 @@ void VulkanContext::initLogicalDevice() {
     vk::StructureChain featureChain{
         vk::PhysicalDeviceFeatures2{},
         vk::PhysicalDeviceVulkan11Features{.shaderDrawParameters = true},
+        vk::PhysicalDeviceVulkan12Features{
+            .uniformAndStorageBuffer8BitAccess = true,
+            .shaderInt8 = true
+        },
         vk::PhysicalDeviceVulkan13Features{.synchronization2 = true, .dynamicRendering = true},
         vk::PhysicalDeviceExtendedDynamicStateFeaturesEXT{.extendedDynamicState = true}
     };
