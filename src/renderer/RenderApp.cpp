@@ -26,8 +26,7 @@
 namespace {
 
 constexpr uint32_t MAX_FRAMES_IN_FLIGHT = 2;
-constexpr uint32_t GOL_SIZE = 128;
-constexpr float QUAD_EXTENT_RATIO = 0.85f;
+constexpr float QUAD_EXTENT_RATIO = 0.95f;
 
 std::mt19937& randomGenerator() {
     static std::random_device rd;
@@ -46,10 +45,20 @@ vk::Viewport makeViewport(vk::Extent2D extent) {
     };
 }
 
-glm::mat4 makeSquareTransform(vk::Extent2D extent) {
+glm::mat4 makeSquareTransform(vk::Extent2D extent, uint32_t golSize) {
     const float width = static_cast<float>(extent.width);
     const float height = static_cast<float>(extent.height);
     const float side = QUAD_EXTENT_RATIO * std::min(width, height);
+
+    // Keep every GOL cell aligned to the same integer number of framebuffer
+    // pixels. Disabled for now so the quad always occupies exactly 85% of the
+    // shorter framebuffer edge.
+    // const uint32_t desiredSide = static_cast<uint32_t>(
+    //     QUAD_EXTENT_RATIO * std::min(extent.width, extent.height)
+    // );
+    // const uint32_t cellPixels = std::max(1u, desiredSide / golSize);
+    // const float side = static_cast<float>(cellPixels * golSize);
+    (void)golSize;
 
     glm::mat4 transform{1.0f};
     transform[0][0] = side / width;
@@ -65,14 +74,7 @@ void RenderApp::init() {
         MAX_FRAMES_IN_FLIGHT
     );
 
-    golPass = std::make_unique<GOLPass>(context, GOL_SIZE);
-
-    std::bernoulli_distribution aliveDistribution(0.1);
-    std::vector<int8_t> initialData(static_cast<size_t>(GOL_SIZE) * GOL_SIZE);
-    for (int8_t& cell : initialData) {
-        cell = aliveDistribution(randomGenerator()) ? 1 : 0;
-    }
-    golPass->initGOLData(context, initialData);
+    resetGOL(static_cast<uint32_t>(state.golSize));
 
     const vk::DescriptorSetLayoutBinding textureBinding{
         .binding = 0,
@@ -138,6 +140,24 @@ void RenderApp::init() {
     );
     textureSet = std::move(sets[0]);
 
+    updateGOLTextureDescriptor();
+}
+
+void RenderApp::resetGOL(uint32_t size) {
+    golSize = size;
+    auto newPass = std::make_unique<GOLPass>(context, golSize);
+
+    std::bernoulli_distribution aliveDistribution(0.1);
+    std::vector<int8_t> initialData(static_cast<size_t>(golSize) * golSize);
+#pragma omp parallel for
+    for (int8_t& cell : initialData) {
+        cell = aliveDistribution(randomGenerator()) ? 1 : 0;
+    }
+    newPass->initGOLData(context, initialData);
+    golPass = std::move(newPass);
+}
+
+void RenderApp::updateGOLTextureDescriptor() {
     const Texture& golTexture = golPass->getTexture();
     const vk::DescriptorImageInfo imageInfo{
         .sampler = *golTexture.sampler,
@@ -202,7 +222,7 @@ void RenderApp::record(vk::raii::CommandBuffer& cmd, SurfaceImage& target, vk::E
         {}
     );
 
-    const glm::mat4 transform = makeSquareTransform(extent);
+    const glm::mat4 transform = makeSquareTransform(extent, golSize);
     cmd.pushConstants(
         *pipelineLayout,
         vk::ShaderStageFlagBits::eVertex,
@@ -224,6 +244,14 @@ void RenderApp::drawFrame() {
     if (state.quit || windowApp.isMinimized()) {
         framebufferResized |= windowApp.isMinimized();
         return;
+    }
+
+    if (state.resetGOLRequested) {
+        context.device.waitIdle();
+        state.golSize = (state.golSize / 16) * 16;
+        resetGOL(static_cast<uint32_t>(state.golSize));
+        updateGOLTextureDescriptor();
+        state.resetGOLRequested = false;
     }
 
     const auto framebufferSize = windowApp.getFrameSize();

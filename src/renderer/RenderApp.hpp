@@ -37,8 +37,11 @@ private:
 
     std::vector<FrameContext> frames;
     uint32_t frameIndex = 0;
+    uint32_t golSize = 64;
 
     void init();
+    void resetGOL(uint32_t size);
+    void updateGOLTextureDescriptor();
     void recreateSwapChainResources(Size2D<uint32_t> size);
     void record(
         vk::raii::CommandBuffer& cmd,

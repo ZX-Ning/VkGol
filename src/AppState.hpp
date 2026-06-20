@@ -8,7 +8,7 @@
 struct Scene;
 
 struct AppState {
-    RGBAColor clearColor{0.45f, 0.53f, 0.65f, 1.f};
+    RGBAColor clearColor{0.13f, 0.13f, 0.13f, 1.f};
     uint64_t lastRenderTimestamp{0};
 
     struct InputState {
@@ -17,6 +17,8 @@ struct AppState {
         glm::fvec2 lastMousePos;
         int mouseState{0};
     } inputs;
+    int golSize{64};
+    bool resetGOLRequested{false};
     bool showImGui{true};
     bool quit{false};
 };

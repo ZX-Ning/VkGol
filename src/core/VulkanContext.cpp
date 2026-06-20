@@ -242,7 +242,7 @@ vk::raii::PhysicalDevice pickPhysicalDevice(vk::raii::Instance& instance) {
     }
     for (vk::raii::PhysicalDevice& device : devicesFiltered) {
         auto props = device.getProperties();
-        if (props.deviceType == vk::PhysicalDeviceType::eIntegratedGpu) {
+        if (props.deviceType == vk::PhysicalDeviceType::eDiscreteGpu) {
             std::println("Device: {}", props.deviceName.data());
             return device;
         }

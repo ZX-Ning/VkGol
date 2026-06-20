@@ -102,38 +102,25 @@ ImDrawData* ImguiApp::drawImgui(AppState& state) {
     ImGui_ImplVulkan_NewFrame();
     ImGui::NewFrame();
 
-    const ImGuiViewport* viewport = ImGui::GetMainViewport();
-    // ImGui::SetNextWindowPos(viewport->Pos);
-    // ImGui::SetNextWindowSize(viewport->Size);
-    // ImGuiWindowFlags window_flags =
-    //     ImGuiWindowFlags_NoDecoration |
-    //     ImGuiWindowFlags_NoMove |
-    //     ImGuiWindowFlags_NoSavedSettings |
-    //     ImGuiWindowFlags_NoBackground |
-    //     ImGuiWindowFlags_NoInputs;
-    // {
-    //     ImGui::Begin("##Fullscreen", nullptr, window_flags);
-    //     ImDrawList* drawList = ImGui::GetWindowDrawList();
-    //     float w = viewport->Size.x / 2.f;
-    //     float h = viewport->Size.y / 2.f;
-    //     drawList->AddLine({w, h - 8.f}, {w, h + 8.f}, 0xFFFFFFFF, 2.f);
-    //     drawList->AddLine({w - 10.f, h}, {w + 10.f, h}, 0xFFFFFFFF, 2.f);
-    //     ImGui::End();
-    // }
+    if (state.showImGui) {
+        ImGui::Begin("Game of Life");
+        ImGui::ColorEdit3("Background", state.clearColor.data());
+        int newGolSize = state.golSize;
+        if (ImGui::SliderInt("GOL Size", &newGolSize, 16, 1<<14)) {
+            if (newGolSize > state.golSize) {
+                state.golSize = ((newGolSize + 15) / 16) * 16;
+            }
+            else if (newGolSize < state.golSize) {
+                state.golSize = (newGolSize / 16) * 16;
+            }
+        }
+        ImGui::Text("Grid: %d x %d", state.golSize, state.golSize);
+        if (ImGui::Button("Reset")) {
+            state.resetGOLRequested = true;
+        }
+        ImGui::End();
+    }
 
-    // auto imguiScale = ImGui::GetIO().DisplayFramebufferScale;
-    // auto size = ImGui::GetMainViewport()->Size;
-    // std::println("Imgui scale: {}x{}", imguiScale.x, imguiScale.y);
-    // ImGui::SetNextWindowSize(ImVec2(size.x * 0.75, size.y * 0.15), ImGuiCond_Appearing);
-    ImGui::Text("HELLO WORLD");
-    // if (state.showImGui) {
-        // ImGui::Begin("");
-        // TODO
-        // ImGui::End();
-    // }
-    // if (state.showDemoWindow) {
-    //     ImGui::ShowDemoWindow(&(state.showDemoWindow));
-    // }
     ImGui::Render();
     return ImGui::GetDrawData();
 }

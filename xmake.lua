@@ -16,7 +16,7 @@ target("learn_vulkan", function()
     set_kind("binary")
     set_languages("c17", "c++23")
     add_files("src/**.cpp")
-    add_packages("libsdl3", "glm", "vulkan-hpp", "vulkan-memory-allocator")
+    add_packages("libsdl3", "glm", "vulkan-hpp", "vulkan-memory-allocator", "openmp")
     add_deps("imgui_vulkan_sdl3", "stb")
 
     add_defines("VK_NO_PROTOTYPES")
